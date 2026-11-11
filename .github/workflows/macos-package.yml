@@ -78,7 +78,6 @@ jobs:
       # TODO: Remove this legacy source_ref mode mapping on 2027-01-04 with the parser aliases.
       PACKAGE_VERSION_MODE: ${{ inputs.version_mode == 'follow-dsh' && 'product' || inputs.version_mode == 'build-number' && 'auto' || inputs.version_mode }}
       DSH_DESKTOP_UPDATE_CHANNEL: ${{ inputs.update_channel }}
-      DSH_TELEMETRY_DISABLED: '1'
       DSH_PACKAGING_PRESET: ${{ inputs.preset }}
       PACKAGE_TEST_RELEASE_ID: ${{ inputs.test_release_id }}
     steps:

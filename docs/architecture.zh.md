@@ -20,7 +20,7 @@
 
 两者都在各自的 `package.json` 中通过 `dsh` 字段声明自己：`dsh.profile` 列出一个 profile 的组合包，`dsh.bundle` 指向一个组合包的 patch 文件。
 
-[`dsh-base`](../packages/bundle/base/README.zh.md) 是 `web`、`headless`、`sdk` 与 `acp` profile 的共享第一层：模型适配器、工具、持久化、沙箱与审批策略、设置、凭据、遥测。[`dsh-web-app`](../packages/bundle/web-app/README.zh.md) 增加浏览器应用，[`dsh-headless`](../packages/bundle/headless/README.zh.md) 增加不带服务器的一次性运行器，[`dsh-sdk-app`](../packages/bundle/sdk-app/README.zh.md) 增加 SDK JSON-RPC 服务器，[`dsh-acp-app`](../packages/bundle/acp-app/README.zh.md) 增加仅用于自动化的 ACP 服务器。[`dsh-sdk-minimal`](../packages/bundle/sdk-minimal/README.zh.md) 是刻意保留的例外：一个组合包拥有完整的显式 SDK 配置树，不应用 `dsh-base`。
+[`dsh-base`](../packages/bundle/base/README.zh.md) 是 `web`、`headless`、`sdk` 与 `acp` profile 的共享第一层：模型适配器、工具、持久化、沙箱与审批策略、设置、凭据。[`dsh-web-app`](../packages/bundle/web-app/README.zh.md) 增加浏览器应用，[`dsh-headless`](../packages/bundle/headless/README.zh.md) 增加不带服务器的一次性运行器，[`dsh-sdk-app`](../packages/bundle/sdk-app/README.zh.md) 增加 SDK JSON-RPC 服务器，[`dsh-acp-app`](../packages/bundle/acp-app/README.zh.md) 增加仅用于自动化的 ACP 服务器。[`dsh-sdk-minimal`](../packages/bundle/sdk-minimal/README.zh.md) 是刻意保留的例外：一个组合包拥有完整的显式 SDK 配置树，不应用 `dsh-base`。
 
 各层依次应用在空条目列表之上：profile 中有序的组合包、其 `cordis.patch.yml`、home patch，最后是 `--patch` overlay。一条 patch 按 id 定位某个条目并替换其整个 config，或插入新条目。`preset` patch 在目标声明的 `config.plugins` 内应用这些操作，沿用相同的层优先级。
 
@@ -72,7 +72,7 @@ Electron 使用 Electron Node 模式启动私有 Desktop Host。Host 调用共�
 
 - **会话事件**是追加到日志并通过 `session/event` 广播的持久事实。当某个事实必须在重新加载后仍然存在时，使用它。
 - **Agent 事件**（`agent/*`）携带活跃 `Agent`：inbox、步骤、状态、请求、验证、续跑。要观察或拦截进行中的工作时，使用它。
-- **能力事件**无需导入循环即可向某个 seam（`fs/*`、`tools/*`、`telemetry/*`）附加策略和适配器。
+- **能力事件**无需导入循环即可向某个 seam（`fs/*`、`tools/*`）附加策略和适配器。
 
 Subagent Activation 拥有运行时树成员关系。
 
@@ -127,7 +127,7 @@ turn/end
 
 ## 会话日志
 
-会话日志是模型所见上下文的来源。`deriveMessages()` 从中投影出模型历史。每个 `assistant/message` 都嵌入产生其组装内容的精确紧凑带时间 stream；`assistant/attempt` 保留已到达 settlement 的失败、重试、取消与 stream error attempt，且不添加模型历史。fork、恢复、transcript（文本记录）、遥测与持久化都从这些持久 settlement 派生，实时 UI 增量则来自 `agent/assistant-stream`；如果进程在 settlement 前硬中断，则不会留下持久 attempt stream（见[决策](../.agents/notes/implemented/architecture/2026-09-01-v2-embedded-assistant-streams.zh.md)）。
+会话日志是模型所见上下文的来源。`deriveMessages()` 从中投影出模型历史。每个 `assistant/message` 都嵌入产生其组装内容的精确紧凑带时间 stream；`assistant/attempt` 保留已到达 settlement 的失败、重试、取消与 stream error attempt，且不添加模型历史。fork、恢复、transcript（文本记录）与持久化都从这些持久 settlement 派生，实时 UI 增量则来自 `agent/assistant-stream`；如果进程在 settlement 前硬中断，则不会留下持久 attempt stream（见[决策](../.agents/notes/implemented/architecture/2026-09-01-v2-embedded-assistant-streams.zh.md)）。
 
 Session 消费方只了解当前逻辑格式。仅 header 的 `stat` 与 `list` 会重新扫描每个 Session 目录，选择数值最高的规范 generation，并在不加载事件或发布后继的情况下转换受支持的历史 header。已存储 Session 的 `open` 选择同一 generation，拒绝未来版本，或只 Decode 并组合一次构建时静态确定的相邻迁移链，再返回经过校验的当前逻辑事件。只读 open 直接使用这份内存结果，不发布后继；写 open 则先编码、校验并在未改变源的旁边排他发布最终版本命名的后继。未被后续事件封住的普通中断尾部仍由句柄消费方修复；只有在后续 `turn/start` 已经封住一种有限的已发布 restart 时，migration 才会插入缺失的 interrupted `turn/end`。JSONL v0 使用 `session.jsonl[.zstd]`，v1 及后续版本使用小写 `session.vN.jsonl[.zstd]`；已提交 generation 路径绝不重命名、替换或删除。JSONL provider 负责物理 framing、压缩、generation 选择与排他发布，每个相邻迁移包只负责一个 `vN -> vN+1` 步骤（[决策](../.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md)）。
 

@@ -157,9 +157,6 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'pluginMarket/readEntryDetail': 'owner-only', // owner plugin market
   'pluginMarket/search': 'owner-only', // owner plugin market
   'pluginMarket/setIndexes': 'owner-only', // owner plugin market
-  'productAnalytics/enabled': 'owner-only', // owner product analytics
-  'productAnalytics/report': 'owner-only', // owner product analytics
-  'productAnalytics/watchPolicy': 'owner-only', // owner product analytics
   'pluginRegistryProbe/fastest': 'owner-only', // owner plugin registry probe
   'sessionReferenceResolver/candidates': 'owner-only', // owner composer reference resolution
   'officeToPdf/generation': 'owner-only', // owner document export

@@ -61,15 +61,14 @@ function fixture(channel: 'nightly' | 'stable' = 'nightly', version = '1.1.0-alp
   })
   const quitAndInstall = vi.fn()
   const beforeRestart = vi.fn(async () => true)
-  const downloadResult = vi.fn()
   const states: DesktopUpdateState[] = []
   const updater = Object.assign(events, { checkForUpdates, downloadUpdate, quitAndInstall }) as unknown as AppUpdater
   const coordinator = new DesktopUpdateCoordinator(
     (state) => { states.push(state); return state },
-    beforeRestart, updater, () => true, () => version, downloadResult, channel, discard,
+    beforeRestart, updater, () => true, () => version, channel, discard,
   )
   coordinators.push(coordinator)
-  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart, downloadResult }
+  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart }
 }
 
 describe('desktop update coordinator', () => {
@@ -225,22 +224,22 @@ describe('desktop update coordinator', () => {
 })
 
 
-it('reports one download result when callers share an operation and none for cached readiness', async () => {
+it('runs one download when callers share an operation and none for cached readiness', async () => {
   const f = fixture()
   await f.coordinator.check()
   await Promise.all([f.coordinator.download('1.1.0-rc.2'), f.coordinator.download('1.1.0-rc.2')])
   await f.coordinator.download('1.1.0-rc.2')
-  expect(f.downloadResult).toHaveBeenCalledExactlyOnceWith(true)
+  expect(f.downloadUpdate).toHaveBeenCalledOnce()
+  expect(f.coordinator.state.phase).toBe('ready')
 })
 
 
-it.each([new DesktopUpdatePreparationError('stop-failed', 'private diagnostic'), new Error('private URL')])('reports safe download failure classification: %s', async (error) => {
+it.each([new DesktopUpdatePreparationError('stop-failed', 'private diagnostic'), new Error('private URL')])('keeps a failed download recoverable: %s', async (error) => {
   const f = fixture()
   await f.coordinator.check()
   f.downloadUpdate.mockRejectedValueOnce(error)
-  await f.coordinator.download('1.1.0-rc.2')
-  expect(f.downloadResult).toHaveBeenCalledExactlyOnceWith(false, error instanceof DesktopUpdatePreparationError ? 'stop-failed' : 'download_failed')
-  expect(JSON.stringify(f.downloadResult.mock.calls)).not.toContain('private')
+  expect(await f.coordinator.download('1.1.0-rc.2')).toMatchObject({ phase: 'error', failedOperation: 'download' })
+  expect((await f.coordinator.download('1.1.0-rc.2')).phase).toBe('ready')
 })
 
 
@@ -349,7 +348,6 @@ it('waits for a cancelled download before checking the new channel and ignores l
   finished.resolve([])
   await Promise.all([downloading, switching])
   expect(f.coordinator.state).toEqual({ phase: 'available', version: '1.2.0' })
-  expect(f.downloadResult).not.toHaveBeenCalled()
   expect(f.updater.allowDowngrade).toBe(false)
 })
 

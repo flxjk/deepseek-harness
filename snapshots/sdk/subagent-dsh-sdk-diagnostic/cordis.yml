@@ -17,11 +17,6 @@
     root: !!js dshHomePath('sessions')
     compression: !!js "process.env.DSH_SNAPSHOT === undefined ? 'zstd' : 'none'"
 
-- id: session-log-deepseek
-  name: '@deepseek-ai/dsh-session-log-deepseek'
-  config:
-    enabled: true
-
 - insert:
     - id: subagent-dsh-sdk-diagnostic
       name: '@deepseek-ai/dsh-subagent-dsh-sdk'
@@ -34,7 +29,6 @@
         provider: mock
         model: mock-echo
         env:
-          DSH_TELEMETRY_DISABLED: '1'
           DSH_TEST_CHILD_FAILURE: '1'
     - id: tool-subagent-dsh-sdk-diagnostic
       name: '@deepseek-ai/dsh-tool-subagent'
@@ -53,7 +47,6 @@
         provider: mock
         model: mock-echo
         env:
-          DSH_TELEMETRY_DISABLED: '1'
           DSH_TEST_CHILD_FAILURE: '1'
     - id: tool-subagent-dsh-sdk-diagnostic-second
       name: '@deepseek-ai/dsh-tool-subagent'

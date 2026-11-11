@@ -1,4 +1,4 @@
-# Agent Note: DeepSeek LLM API request extensions for session logs and plugin packages
+# Agent Note: DeepSeek LLM API request extensions for plugin package metadata
 
 Status: implemented
 
@@ -6,25 +6,15 @@ English | [中文](2026-08-21-deepseek-llm-api-request-extensions.zh.md)
 
 ## Problem
 
-The canonical Session log contains request boundaries, raw response chunks, assembled messages, tool activity, plugin events, and failure facts that the model message list does not preserve. The OTel session-telemetry path projects and batches that log independently of model requests, uses deployment-selected sharing modes, and intentionally drops most assistant chunks. DeepSeek's official API therefore cannot reconstruct the complete harness trajectory from its ordinary request messages or the telemetry feed.
-
 Provider-side diagnosis also needs the exact active plugin package versions that produced a request. The existing browser-facing plugin inventory reports configured Loader rows and lifecycle phases but owns neither package-manifest resolution nor the requesting agent's standing preset composition.
 
-Both values belong only on the official DeepSeek adapter path. Adding them to `GenerateOptions` or the provider-neutral LLM seam would expose DeepSeek wire concepts to pi-ai and every future adapter.
+The value belongs only on the official DeepSeek adapter path. Adding it to `GenerateOptions` or the provider-neutral LLM seam would expose DeepSeek wire concepts to pi-ai and every future adapter.
 
 ## Decision
 
-`@deepseek-ai/dsh-deepseek-llm-api-extensions` registers `ctx.deepseekLlmApiExtensions`, an additive registry of top-level fields for `deepseek-official` request bodies. A contributor claims one declaration-merged field with `register()`. The adapter invokes `prepare()` after serializing the exact wire messages, passes the request cancellation signal, rejects base-field collision before HTTP, merges the detached fields, and calls the captured `accept()` transaction after HTTP 2xx. A merged body that fails to serialize is sent without extension fields or acceptance under the [bounded-upload decision](2026-09-24-bounded-session-log-upload.md). The registry stops awaiting preparation after cancellation even if a contributor ignores the signal. Extension fields are auxiliary and best effort: the registry logs and omits a contributor whose preparation throws, and the adapter logs an acceptance failure without failing the model request; transport and non-2xx failures never accept a contribution. A composition without the registry retains the reusable base adapter. Shipped compositions mount the registry and both contributors: both package metadata and Session-log upload are enabled by default; `session-log-deepseek.enabled: false` disables log upload under the [default-upload decision](2026-09-14-session-log-upload-default.md). Keyless `deepseek-official` replay invokes preparation with a synthetic empty base body and the same acceptance transaction before its first recorded chunk, preserving post-2xx extension side effects rather than field bytes.
+`@deepseek-ai/dsh-deepseek-llm-api-extensions` registers `ctx.deepseekLlmApiExtensions`, an additive registry of top-level fields for `deepseek-official` request bodies. A contributor claims one declaration-merged field with `register()`. The adapter invokes `prepare()` after serializing the exact wire messages, passes the request cancellation signal, rejects base-field collision before HTTP, merges the detached fields, and calls the captured `accept()` transaction after HTTP 2xx. A merged body that fails to serialize is sent without extension fields or acceptance. The registry stops awaiting preparation after cancellation even if a contributor ignores the signal. Extension fields are auxiliary and best effort: the registry logs and omits a contributor whose preparation throws, and the adapter logs an acceptance failure without failing the model request; transport and non-2xx failures never accept a contribution. A composition without the registry retains the reusable base adapter. Shipped compositions mount the registry and its package-metadata contributor. Keyless `deepseek-official` replay invokes preparation with a synthetic empty base body and the same acceptance transaction before its first recorded chunk, preserving post-2xx extension side effects rather than field bytes.
 
 The provider-neutral `llm` package and `llm-pi-ai` contain no extension type, service lookup, field merge, or acceptance call.
-
-## Incremental session-log field
-
-`@deepseek-ai/dsh-session-log-deepseek` owns the default-on `dsh_session_log` field. When enabled, each request carrying a live Session id sends the longest contiguous canonical event run after the greatest durable `session-log-deepseek/delivery-accepted` watermark for that same Session identity that fits the `maxBytes` limit of the [bounded-upload decision](2026-09-24-bounded-session-log-upload.md). The field includes the immutable Session header and complete event envelopes. A 2xx appends a new watermark for the transmitted `throughSeq`; that event enters the following request's suffix. Forked logs retain parent watermark ids, so a child starts from sequence zero under its own identity. Concurrent acceptances may arrive out of order, and the maximum watermark remains authoritative. A process-local fold scans each Session event once and incrementally consumes later appends; a new Session object or HMR generation rebuilds the fold from durable history.
-
-The failure direction is at least once. A transport or provider rejection records no watermark. A crash after remote acceptance but before the watermark persists causes replay after resume, never a skipped sequence. Existing session checkpoints persist the event; the upload plugin owns no second store.
-
-The `events` array contains complete canonical `SessionEvent` objects directly. The sender copies every present event member without projection or redaction; the field is self-contained and requires no reconstruction against `messages`.
 
 ## Plugin package field
 
@@ -50,32 +40,13 @@ The process-lifetime manifest-identity cache remains separate because in-process
 
 ## Verification
 
-Registry tests pin duplicate ownership, effect-scoped disposal, detached field values, concurrent and abortable preparation, receiver-preserving acceptance, one acceptance settlement, and failure aggregation. Session tests pin default-on and explicit-off policies, full-first/suffix-later delivery, direct complete event envelopes independent of base-body messages, incremental watermark folding, persisted restart recovery, fork identity fencing, and out-of-order acceptance. Package-inventory tests pin default-on and explicit-off policies, host and standing-preset discovery, conflicting Loader resolution bases, manifest resolution, lifecycle filtering, and exact name/version ordering. The direct adapter mock proves pre-HTTP preparation rejection, cancellation, non-2xx non-acceptance, 2xx acceptance before a later stream failure, and field collision. Keyless replay pins post-2xx extension acceptance, and the TypeScript JSON-RPC plus Python packaged-runtime snapshots project the acceptance event through both SDKs. Real Loader composition pins default package metadata and Session upload plus explicit upload disablement, one real-API request mounts both shipped extensions and proves the official endpoint accepts them, and pi-ai tests retain their unchanged wire requests.
+Registry tests pin duplicate ownership, effect-scoped disposal, detached field values, concurrent and abortable preparation, receiver-preserving acceptance, one acceptance settlement, and failure aggregation. Package-inventory tests pin default-on and explicit-off policies, host and standing-preset discovery, conflicting Loader resolution bases, manifest resolution, lifecycle filtering, and exact name/version ordering. The direct adapter mock proves pre-HTTP preparation rejection, cancellation, non-2xx non-acceptance, 2xx acceptance before a later stream failure, and field collision. Keyless replay pins post-2xx extension acceptance. Real Loader composition pins default package metadata, one real-API request mounts the shipped extension and proves the official endpoint accepts it, and pi-ai tests retain their unchanged wire requests.
 
 ## Alternatives considered
 
 **Add generic metadata to `GenerateOptions` or `ctx.llm`.** Rejected because the values and acceptance timing are DeepSeek wire semantics; a provider-neutral request would make every adapter understand or ignore foreign fields.
 
-**Hard-wire the two producers into `llm-deepseek`.** Rejected because the adapter would import Session, Loader, preset, package-manifest, and cursor logic. The registry keeps transport responsible only for field merge and HTTP acceptance.
-
-### Why not request-relative message references?
-
-A recursive tagged representation could replace exact event-string ranges with paths and UTF-8 byte offsets into the containing request's `messages`. Measurement used Node v24.16.0 on macOS arm64 and the three largest available local Zstandard Session artifacts, whose compressed artifact sizes were 2,437,052, 572,602, and 118,811 bytes. Late-enable replay used each final completed request boundary; steady replay covered 411 completed boundaries. The byte counts cover complete minified DeepSeek requests.
-
-| Replay | Raw JSON | Referenced JSON | Saving | Synchronous encoder time |
-|---|---:|---:|---:|---:|
-| Late enable | 29,668,725 B | 27,645,825 B | 6.82% | 500.1 s total |
-| Steady state | 389,295,815 B | 387,180,848 B | 0.54% | 285.0 s total |
-
-The three late-enable calls took 470.5, 29.4, and 0.158 seconds. Only 701 of 115,071 events (0.61%) selected references. A hypothetical level-6 whole-request gzip comparison reduced raw request bytes by 89.38% for late enable and 73.42% for steady state; message references added 21.68% and 0.59% respectively after gzip.
-
-The receiver would also need to traverse the tagged tree, resolve paths into the exact request messages, validate UTF-8 ranges, and reconstruct every referenced event. Even treating that receiver cost as zero, the steady-state byte saving, synchronous sender cost, and dependence on another request field do not justify a versioned wire format.
-
-### Why not omit assistant chunks or overlapping event data?
-
-About 98% of the measured v1 real-session events were `assistant/chunk`. Omitting them after reference encoding reduced the complete identity JSON by another 84.79% for late enable and 6.49% for steady state, but prevented lossless reconstruction and left message source-event references dangling. V2 embeds compact streams in attempt settlements; `dsh_session_log` still sends every current canonical event whole and does not omit those embedded records. Fuzzy or normalized substitutions have the same reconstruction defect.
-
-**Keep the upload cursor only in memory.** Rejected because a normal process restart would resend the entire Session. A canonical acceptance event makes restart recovery best-effort durable without another storage backend; the remaining crash window produces allowed duplicates.
+**Hard-wire the producer into `llm-deepseek`.** Rejected because the adapter would import Loader, preset, and package-manifest logic. The registry keeps transport responsible only for field merge and HTTP acceptance.
 
 **Inventory every live Cordis fiber.** Rejected because programmatic and in-memory fibers have no authoritative npm package identity. Loader-backed host and preset entries provide exact resolvable package identity.
 
@@ -85,8 +56,6 @@ About 98% of the measured v1 real-session events were `assistant/chunk`. Omittin
 
 ## Consequences
 
-Official DeepSeek requests carry active package versions to their resolved `baseURL`, including configured gateways. Unless Session-log upload is disabled, each eligible request also carries newly unaccepted Session events, up to `maxBytes` per request. The fields are model-hidden and add no prompt tokens or KV-cache changes, but can substantially increase HTTP body size. Field collision or provider schema rejection fails the model request. A contributor preparation failure, an acceptance failure, or a merged body that fails to serialize logs a warning and lets the request proceed; a package without a usable version reports only its name.
+Official DeepSeek requests carry active package versions to their resolved `baseURL`, including configured gateways. The field is model-hidden and adds no prompt tokens or KV-cache changes. Field collision or provider schema rejection fails the model request. A contributor preparation failure, an acceptance failure, or a merged body that fails to serialize logs a warning and lets the request proceed; a package without a usable version reports only its name.
 
-The `delivery-accepted` event becomes part of the canonical log and is itself delivered on a later request. Crash recovery can duplicate a suffix but does not infer acceptance from assistant output or create a second local cursor store. Direct calls without a live Session omit the session field; host package inventory remains available.
-
-The [DeepSeek reference](../../../../packages/llm/llm-deepseek/README.md) defines user/session headers outside the body. The [Session telemetry reference](../../../../packages/session/session-telemetry/README.md) owns capture and redaction; this request path does not alter OTel capture or sharing modes.
+The [DeepSeek reference](../../../../packages/llm/llm-deepseek/README.md) defines the session header outside the body.

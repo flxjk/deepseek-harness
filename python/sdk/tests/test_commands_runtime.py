@@ -265,7 +265,7 @@ def _runtime(
             initialize_timeout_seconds=60, request_timeout_seconds=20, shutdown_timeout_seconds=20,
             on_user_question=on_user_question,
             env={"DSH_PERMISSION_MODE": initial_permission,
-                 "DSH_TELEMETRY_DISABLED": "1", "DSH_TOOLS_MODE": "native"},
+                 "DSH_TOOLS_MODE": "native"},
         )
         try:
             harness.start()

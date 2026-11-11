@@ -7,8 +7,6 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
-Desktop product events use the optional [product analytics service](../product-analytics/README.md); ordinary Web interactions are excluded.
-
 ## Summary
 
 The dsh web client sidebar lets users recognize the active build, start a new session, collapse navigation to a 56px rail, browse Workspaces and Sessions, and open Settings. It preserves a bottom-pinned Settings entry and hides idle scrollbars without moving browser rows. New Session uses an explicitly selected Workspace, then the current Session's Workspace, then the most recently active Workspace; if none exists, it opens a blank New Session page. Deployments can replace the brand mark or name while retaining the navigation controls and rail geometry.
@@ -61,15 +59,6 @@ Under `html[data-platform='darwin']` (set only by the desktop preload) the expan
 
 Scrollbars in the column are a pointer affordance: the shell rebinds the scrollbar indirection to `transparent` whenever the pointer is outside the column and keeps the thumb drawn for 2s after the pointer leaves, so a list nobody is pointing at carries no bar. The reservation that keeps rows from moving belongs to the scrolling region (ui-workspace), so revealing a thumb never reflows.
 
-### Click analytics
-
-On Desktop, the official navigation controls report `sidebar_menu_click` with `menu_name` and `position` before they act. Without the analytics service, the controls only navigate. Selecting a panel by other means reports nothing, and the sidebar reports no exposure events.
-
-- The expanded brand and the New Session button report `menu_name=new_session` with `position=sidebar`. While the Windows caption hosts the collapsed New Session button, that button reports `position=titlebar`; the macOS New Session control beside the traffic lights also reports `position=titlebar`.
-- The **Plugins** and **Automation tasks** rows report `menu_name=plugin` and `menu_name=cron` with `position=sidebar`. Other panel rows report nothing.
-- Each **More** button click reports `menu_name=more` with `position=sidebar`, whether it opens or closes the menu.
-- A More menu row that calls `onOpen(id)` for Plugins or Automation tasks reports `menu_name=plugin` or `menu_name=cron` with `position=sidebar_more`. The shipped More menu calls `onOpen` for unpinned panels, including Automation tasks; pin and unpin actions report no navigation click. The report precedes the registration check, so a request for a panel that has unregistered still counts although nothing is selected.
-
 -----
 
 <a id="understand-the-implementation"></a>
@@ -78,7 +67,7 @@ On Desktop, the official navigation controls report `sidebar_menu_click` with `m
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The shell is pure composition: `SidebarRootComponentProps` composes the layout owner share, the global `useSessions` and `useWorkspaces` hooks, the declared brand, the `sidebar.workspaces` and `sidebar.settings` child slots, and injected navigation callbacks. The sidebar declares the `sidebar.panel.icon` Component Factory, which owns the `sidebar.panellist` list; panel rows and the More menu render a panel's registered icon through that factory. Panel metadata is derived from list registrations and locale changes; selection belongs to the layout store. The injected `trackEntryClick(attributes)` forwards to `ctx.get('productAnalytics')?.track('sidebar_menu_click', attributes)`, and `selectPanel` only selects, so each control supplies its own entry and position.
+The shell is pure composition: `SidebarRootComponentProps` composes the layout owner share, the global `useSessions` and `useWorkspaces` hooks, the declared brand, the `sidebar.workspaces` and `sidebar.settings` child slots, and injected navigation callbacks. The sidebar declares the `sidebar.panel.icon` Component Factory, which owns the `sidebar.panellist` list; panel rows and the More menu render a panel's registered icon through that factory. Panel metadata is derived from list registrations and locale changes; selection belongs to the layout store, and `selectPanel` only selects.
 
 Expanded navigation uses 8px outer gutters, hover and selected fills inset 3px on each side, and a 16px leading cell with a 6px label gap. New Session centers its content with 4px side margins. Its initial 12px gap above navigation combines 4px outside the scrollport and an 8px gap that scrolls away. The logo row has no bottom margin; its content starts 16px from the column's left edge, with 5px between mark and name. Only the macOS non-fullscreen top toggle shifts 4px right while expanded, retaining that offset throughout its fade-out. Collapsed geometry stays independent.
 

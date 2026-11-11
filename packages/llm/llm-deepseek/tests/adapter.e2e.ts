@@ -20,7 +20,6 @@ import LlmRuntime, { BlockAssembler, createAssistantMessage, createDeveloperMess
 import type { Message } from '@deepseek-ai/dsh-llm'
 import * as PluginPackageInventoryDeepSeek from '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import * as SessionLogDeepSeek from '@deepseek-ai/dsh-session-log-deepseek'
 import * as Messages from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import { DeepSeekFilesClient } from '../src/files-api.ts'
 import { MESSAGES_FILES_BETA } from '../src/messages-api.ts'
@@ -162,7 +161,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     expect(bodies[3]).not.toContain('"type":"base64"')
   })
 
-  it.each([false, true])('submits Loader package inventory and records HTTP acceptance with session-log enabled=%s', async (enabled) => {
+  it('submits Loader package inventory through the real Messages API path', async () => {
     const pluginRoot = await mkdtemp(join(tmpdir(), 'dsh-unversioned-plugin-e2e-'))
     cleanups.push(() => rm(pluginRoot, { recursive: true, force: true }))
     const unversionedName = 'unversioned-e2e-plugin'
@@ -175,7 +174,6 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(SessionStore)
     await ctx.plugin(DeepSeekLlmApiExtensionRegistry)
-    await ctx.plugin(SessionLogDeepSeek, enabled ? {} : { enabled: false })
     ctx.baseUrl = import.meta.url
     // Select the source module while Loader owns its active package entry.
     ctx.loader.internal = sourceModuleLoader(async (specifier) => {
@@ -191,8 +189,6 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     const session = ctx.sessions.create(SessionId(`real-messages-extensions-${randomUUID()}`))
     session.append('turn/start', { turn: 1 })
     const fetchImpl = globalThis.fetch
-    let afterSeq: number = -1
-    let throughSeq = 0
     let requests = 0
     vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -205,34 +201,18 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
           { name: unversionedName },
         ],
       })
-      if (enabled) {
-        expect(body).toMatchObject({ dsh_session_log: {
-          version: 1, sessionFormatVersion: session.header.version, session: { id: session.id },
-          afterSeq, throughSeq,
-          events: Array.from({ length: throughSeq - afterSeq }, (_, index) => ({ seq: afterSeq + index + 1 })),
-        } })
-      } else expect(body).not.toHaveProperty('dsh_session_log')
-      expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(afterSeq)
+      requests += 1
       const response = await fetchImpl(input, init)
       expect(response.ok).toBe(true)
-      expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(afterSeq)
-      requests += 1
       return response
     })
-    for (let run = 0; run < 2; run++) {
-      afterSeq = SessionLogDeepSeek.acceptedThrough(session)
-      throughSeq = Number(session.seq) - 1
-      const assembler = new BlockAssembler()
-      for await (const chunk of ctx.llm.stream(options({ sessionId: session.id, reasoningEffort: ReasoningEffortId('off'), messages: [user('Reply with exactly PONG.')] }))) {
-        expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(enabled ? throughSeq : -1)
-        assembler.push(chunk)
-      }
-      expect(assembler.finish.kind).toBe('stop')
-      expect(assembler.blocks().filter(block => block.type === 'text').map(block => block.text).join('')).toContain('PONG')
-      expect(requests).toBe(run + 1)
-      if (run === 0) session.append('step/start', { turn: 1, step: 1 })
+    const assembler = new BlockAssembler()
+    for await (const chunk of ctx.llm.stream(options({ sessionId: session.id, reasoningEffort: ReasoningEffortId('off'), messages: [user('Reply with exactly PONG.')] }))) {
+      assembler.push(chunk)
     }
-    expect(session.snapshotEvents().filter(event => event.type === 'session-log-deepseek/delivery-accepted')).toHaveLength(enabled ? 2 : 0)
+    expect(assembler.finish.kind).toBe('stop')
+    expect(assembler.blocks().filter(block => block.type === 'text').map(block => block.text).join('')).toContain('PONG')
+    expect(requests).toBe(1)
   })
 
   it.each(['off', 'low', 'high', 'max'])('streams text with %s effort', async (effort) => {

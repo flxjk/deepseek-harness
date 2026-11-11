@@ -1,5 +1,6 @@
 /**
- * Per-harness-home anonymous user id shared by telemetry and feedback.
+ * Per-harness-home anonymous user id, shared by feedback and other
+ * installation-scoped consumers.
  *
  * The id is a random UUID persisted as a bare line in `.anonymous-user-id` inside the
  * harness home resolved by {@link resolveDshHome} (`$DSH_HOME` > `~/.dsh`),
@@ -61,7 +62,7 @@ function readPersistedId(file: string): AnonymousUserId | undefined {
  * narrow create-to-write window can still yield two per-process ids for that
  * run; the next launch converges on the persisted one.) Persistence is
  * best-effort — a write failure (read-only home) still returns a usable id
- * for the current run so feedback and telemetry are never blocked.
+ * for the current run so feedback is never blocked.
  * @param options - home-location and UUID-generation seams.
  * @returns the stable per-harness-home anonymous user id.
  */

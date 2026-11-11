@@ -179,19 +179,6 @@ it('keeps an outstanding start open until the request settles', async () => {
   expect(screen.getByRole('button', { name: en.signIn }).hasAttribute('disabled')).toBe(false)
 })
 
-// Workspace login remains outside native welcome analytics even if a caller forwards a sender.
-it('does not report workspace login views or login choices', async () => {
-  const track = vi.fn()
-  const props = { ...dialogProps(null), track }
-  const view = render(<SignInDialog {...props} />)
-  view.rerender(<SignInDialog {...props} colorScheme="light" />)
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.signIn })) })
-  expect(props.start).toHaveBeenCalledOnce()
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.addApiKey })) })
-  expect(props.useApiKey).toHaveBeenCalledOnce()
-  expect(track).not.toHaveBeenCalled()
-})
-
 it.each([en, zh])('shows network advice only when the login request received no response', async (copy) => {
   const props = mount({ id, phase: 'failed', errorCode: 'no-response' }, copy)
   await expect(`${screen.getByRole('dialog').textContent}\n`).toMatchFileSnapshot(`./expected/login-no-response-${copy === en ? 'en' : 'zh'}.txt`)

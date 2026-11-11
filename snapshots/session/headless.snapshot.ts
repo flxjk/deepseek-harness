@@ -969,7 +969,6 @@ async function verifyProviderCwdResume(
     DSH_SNAPSHOT_PROVIDER: model.provider,
     DSH_SNAPSHOT_MODEL: model.model,
     DSH_PERMISSION_MODE: 'read-only',
-    DSH_TELEMETRY_DISABLED: '1',
     NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
   }
   const launch = {
@@ -1449,7 +1448,6 @@ describe('headless recorded-session snapshots', () => {
               DSH_MCP_RESOURCES_FIXTURE: join(repoRoot, 'packages/mcp/mcp-client/tests/fixtures/resources-server.ts'),
             } : {}),
             NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
-            DSH_TELEMETRY_DISABLED: '1',
             ...(mcpDemo === undefined ? {} : { DSH_MCP_DEMO_URL: mcpDemo.url }),
           },
           prepare: async (cwd) => {

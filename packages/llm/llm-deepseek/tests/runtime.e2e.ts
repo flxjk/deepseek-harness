@@ -25,7 +25,6 @@ import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import DeepSeekLlmApiExtensionRegistry from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
 import * as PluginPackageInventoryDeepSeek from '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
-import * as SessionLogDeepSeek from '@deepseek-ai/dsh-session-log-deepseek'
 import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import type { Options as Config } from '@deepseek-ai/dsh-llm-deepseek'
 import type { WireRequest } from '../src/wire-types.ts'
@@ -225,7 +224,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('llm-deepseek e2e (real API)', ()
     }
   })
 
-  it('accepts the session-log and plugin-package request extension fields', async () => {
+  it('accepts the plugin-package request extension field', async () => {
     const ctx = new Context()
     contexts.push(ctx)
     await ctx.plugin(Loader)
@@ -234,7 +233,6 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('llm-deepseek e2e (real API)', ()
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(SessionStore)
     await ctx.plugin(DeepSeekLlmApiExtensionRegistry)
-    await ctx.plugin(SessionLogDeepSeek, { enabled: true })
     await ctx.plugin(PluginPackageInventoryDeepSeek)
     await ctx.plugin(LlmDeepSeek, { baseURL: Protocol.PUBLIC_BASE_URL, thinking: 'disabled' })
     const session = ctx.sessions.create(SessionId('real-extension-fields'))
@@ -248,7 +246,6 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('llm-deepseek e2e (real API)', ()
     })
     expect(result.finish.kind).toBe('stop')
     expect(textOf(result).toLowerCase()).toContain('pong')
-    expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(0)
   })
 
   it('serves a real request with the key held only by a credentials-local document', async () => {

@@ -5,7 +5,6 @@ import { configurationFailure, channelSaveFailure, configurationMessage } from '
 import type { DesktopChannelState, DesktopChannelChangeResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import { DesktopUpdateSettings } from './update-settings.ts'
 import { isDesktopUpdateChannel } from './settings-file.ts'
-import type { ProductEventMap, ProductEvent } from '@deepseek-ai/dsh-client-product-analytics/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 import { access, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -483,14 +482,6 @@ async function main(): Promise<void> {
   const browserGuests = new DesktopBrowserGuests(() => hostUrl)
   let injections: readonly unknown[] = []
   let welcomeBackend: DesktopWelcomeBackend | undefined
-  let reportedLaunch = false
-  let analyticsEnabled = false
-  const track = async <K extends keyof ProductEventMap>(eventName: K, attributes: ProductEventMap[K]): Promise<void> => {
-    const event = { eventName, attributes, timestamp: Date.now() } as ProductEvent
-    try {
-      if (analyticsEnabled) await welcomeBackend?.report(event)
-    } catch (_error) { /* Analytics cannot interrupt native actions. */ }
-  }
   let stopAccount: (() => void) | undefined
   let openedAttempt: string | undefined
   let returnedAttempt: string | undefined
@@ -544,8 +535,6 @@ async function main(): Promise<void> {
         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
         injections = ready.injections
         welcomeBackend = connectDesktopWelcome(ready.url, cookie)
-        analyticsEnabled = await welcomeBackend.analyticsEnabled().catch(() => false)
-        if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
         stopAccount?.()
         const accountBackend = welcomeBackend.account
         stopAccount = accountBackend.watch((state) => {
@@ -583,10 +572,9 @@ async function main(): Promise<void> {
             const state = await accountBackend.state()
             if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
           }).catch(() => undefined)
-        }, (enabled) => { analyticsEnabled = enabled })
+        })
       },
       stop: async () => {
-        analyticsEnabled = false
         stopAccount?.()
         try { await host.stop(requireCleanStop) }
         catch (error) {
@@ -718,8 +706,6 @@ async function main(): Promise<void> {
         const result = await updateDialog.show(parent, confirmation)
         if (result.response !== 0 || isMandatory()) return false
       }
-      // The update lock rejects new HTTP requests, including analytics intake.
-      await track('desktop_upgrade_install_restart_click', {})
       if (backend.host !== host) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
       try {
         const stillActive = await host.updateTasks('lock')
@@ -749,7 +735,6 @@ async function main(): Promise<void> {
       return true
     },
     undefined, undefined, undefined,
-    (success, reason) => { void track('desktop_upgrade_download_result', { is_success: success, ...reason === undefined ? {} : { error_reason: reason } }) },
     updateChannel,
   )
 
@@ -766,7 +751,6 @@ async function main(): Promise<void> {
   const updateSchedule = new DesktopUpdateSchedule(updates, resolveDesktopUpdateScheduleConfig(process.env))
 
   const downloadUpdate = async (version: string, revision = updates.revision): Promise<DesktopUpdateState> => {
-    void track('desktop_upgrade_click', {})
     updateJournal?.action('download-requested')
     const state = await updates.download(version, revision)
     if (state.phase !== 'ready' || quitting) return state
@@ -1366,15 +1350,12 @@ async function main(): Promise<void> {
   const showWelcome = (): Promise<void> => {
     if (quitting) return Promise.resolve()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) {
-      if (!welcomeWindow.isVisible()) void track('auth_page_view', {})
       welcomeWindow.show()
       welcomeWindow.focus()
       return Promise.resolve()
     }
     openingWelcome ??= (async () => {
       welcomeWindow = await openWelcomeWindow(locale, {
-        analytics: track,
-        analyticsEnabled: () => Promise.resolve(analyticsEnabled),
         takeNotice: () => {
           const notice = pendingWelcomeNotice
           pendingWelcomeNotice = undefined

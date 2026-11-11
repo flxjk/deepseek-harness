@@ -425,7 +425,6 @@ export async function bootWebOwner(options: WebOwnerOptions = {}): Promise<WebOw
     env: {
       DSH_HOME: home,
       DSH_AGENTS_HOME: join(cwd, '.agents'),
-      DSH_TELEMETRY_DISABLED: '1',
       DEEPSEEK_API_KEY: '',
       // Diagnostic only: the fixture appends one line per adapter call to this temp file.
       BASE_LLM_LOG: join(cwd, 'base-llm.log'),

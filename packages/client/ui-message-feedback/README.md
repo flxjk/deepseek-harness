@@ -65,7 +65,7 @@ Read these pages when the feedback surface is not enough. They move from the bro
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as ratings, categories, and notes are log-only events, not model input. Optional Session-log delivery uses request metadata rather than model context.
+None, as ratings, categories, and notes are log-only events, not model input.
 
 #### KV Cache effect
 

@@ -22,8 +22,6 @@ flowchart LR
   cfg --> plugin_dsh_base_deepseek_llm_api_extensions
   plugin_dsh_base_session["session<br/>@deepseek-ai/dsh-session"]
   cfg --> plugin_dsh_base_session
-  plugin_dsh_base_session_log_deepseek["session-log-deepseek<br/>@deepseek-ai/dsh-session-log-deepseek"]
-  cfg --> plugin_dsh_base_session_log_deepseek
   plugin_dsh_base_typert["typert<br/>@deepseek-ai/dsh-typert-registry"]
   cfg --> plugin_dsh_base_typert
   plugin_dsh_base_typert_loader["typert-loader<br/>@deepseek-ai/dsh-typert-loader"]
@@ -80,10 +78,6 @@ flowchart LR
   cfg --> plugin_dsh_base_storage_domain
   plugin_dsh_base_session_projection_cache["session-projection-cache<br/>@deepseek-ai/dsh-session-projection-cache"]
   cfg --> plugin_dsh_base_session_projection_cache
-  plugin_dsh_base_otel["otel<br/>@deepseek-ai/dsh-otel"]
-  cfg --> plugin_dsh_base_otel
-  plugin_dsh_base_session_telemetry_otel["session-telemetry-otel<br/>@deepseek-ai/dsh-session-telemetry-otel"]
-  cfg --> plugin_dsh_base_session_telemetry_otel
   plugin_dsh_base_subprocess["subprocess<br/>@deepseek-ai/dsh-subprocess-local"]
   cfg --> plugin_dsh_base_subprocess
   plugin_dsh_base_sandbox["sandbox<br/>@deepseek-ai/dsh-sandbox-local"]
@@ -217,7 +211,6 @@ flowchart LR
 | `llm` | `@deepseek-ai/dsh-llm` |
 | `deepseek-llm-api-extensions` | `@deepseek-ai/dsh-deepseek-llm-api-extensions` |
 | `session` | `@deepseek-ai/dsh-session` |
-| `session-log-deepseek` | `@deepseek-ai/dsh-session-log-deepseek` |
 | `typert` | `@deepseek-ai/dsh-typert-registry` |
 | `typert-loader` | `@deepseek-ai/dsh-typert-loader` |
 | `typert-gateway` | `@deepseek-ai/dsh-api-gateway` |
@@ -246,8 +239,6 @@ flowchart LR
 | `storage-json` | `@deepseek-ai/dsh-storage-json` |
 | `storage-domain` | `@deepseek-ai/dsh-storage-domain` |
 | `session-projection-cache` | `@deepseek-ai/dsh-session-projection-cache` |
-| `otel` | `@deepseek-ai/dsh-otel` |
-| `session-telemetry-otel` | `@deepseek-ai/dsh-session-telemetry-otel` |
 | `subprocess` | `@deepseek-ai/dsh-subprocess-local` |
 | `sandbox` | `@deepseek-ai/dsh-sandbox-local` |
 | `sandbox-policy` | `@deepseek-ai/dsh-sandbox-policy` |

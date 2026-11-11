@@ -313,16 +313,6 @@
       }
     },
     {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 20,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 19
-      }
-    },
-    {
       "type": "assistant/message",
       "seq": 21,
       "time": 0,
@@ -542,16 +532,6 @@
       }
     },
     {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 28,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 27
-      }
-    },
-    {
       "type": "assistant/message",
       "seq": 29,
       "time": 0,
@@ -737,16 +717,6 @@
       "data": {
         "turn": 1,
         "step": 3
-      }
-    },
-    {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 34,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 33
       }
     },
     {
@@ -947,16 +917,6 @@
       "data": {
         "turn": 1,
         "step": 4
-      }
-    },
-    {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 41,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 40
       }
     },
     {
@@ -1272,16 +1232,6 @@
         "id": "{{messageId}}"
       },
       "surfaceOp": "append"
-    },
-    {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 55,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 54
-      }
     },
     {
       "type": "assistant/message",
@@ -1911,22 +1861,6 @@
       "payload": {
         "sessionId": "{{parent}}",
         "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 20,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 19
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
           "type": "assistant/message",
           "seq": 21,
           "time": 0,
@@ -2188,22 +2122,6 @@
       "payload": {
         "sessionId": "{{parent}}",
         "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 28,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 27
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
           "type": "assistant/message",
           "seq": 29,
           "time": 0,
@@ -2413,22 +2331,6 @@
           "data": {
             "turn": 1,
             "step": 3
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 34,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 33
           }
         }
       }
@@ -2862,22 +2764,6 @@
     {
       "method": "session.event",
       "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 41,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 40
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
         "sessionId": "{{child-1}}",
         "event": {
           "type": "step/start",
@@ -3089,22 +2975,6 @@
             "source": {
               "kind": "fallback"
             }
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{child-1}}",
-        "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 17,
-          "time": 0,
-          "data": {
-            "sessionId": "{{child-1}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 16
           }
         }
       }
@@ -3926,22 +3796,6 @@
       "payload": {
         "sessionId": "{{child-2}}",
         "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 17,
-          "time": 0,
-          "data": {
-            "sessionId": "{{child-2}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 16
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{child-2}}",
-        "event": {
           "type": "assistant/message",
           "seq": 18,
           "time": 0,
@@ -4254,22 +4108,6 @@
             "id": "{{messageId}}"
           },
           "surfaceOp": "append"
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 55,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 54
-          }
         }
       }
     },

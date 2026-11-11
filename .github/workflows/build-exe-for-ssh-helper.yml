@@ -25,9 +25,6 @@ concurrency:
   group: ssh-helper-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !inputs.release }}
 
-env:
-  DSH_TELEMETRY_DISABLED: '1'
-
 jobs:
   plan:
     runs-on: ubuntu-latest

@@ -55,7 +55,6 @@ export class DesktopUpdateCoordinator {
    * @param currentVersion - Actual installed application version.
    * @param channel - Installed package channel; omitted test/local callers retain nightly.
    * @param discard - Clears settled library targets and platform resources before another channel is used.
-   * @param downloadResult - Once per completed download attempt, including platform preparation failures.
    */
   constructor(
     private readonly publish: (state: DesktopUpdateState) => DesktopUpdateState,
@@ -63,7 +62,6 @@ export class DesktopUpdateCoordinator {
     private readonly updater: AppUpdater = autoUpdater,
     private readonly enabled: () => boolean = () => app.isPackaged && existsSync(join(process.resourcesPath, 'app-update.yml')),
     private readonly currentVersion: () => string = () => app.getVersion(),
-    private readonly downloadResult?: (success: boolean, reason?: string) => void,
     private channel: DesktopUpdateChannel = 'nightly',
     private readonly discard: (updater: AppUpdater) => Promise<void> = discardDesktopUpdate,
   ) {
@@ -186,12 +184,10 @@ export class DesktopUpdateCoordinator {
         await this.updater.downloadUpdate(this.cancellation)
         if (generation !== this.generation || this.disposed) return this.current
         if (!this.downloaded) throw new Error('desktop update: platform preparation did not report readiness')
-        this.downloadResult?.(true)
         return this.setState({ phase: 'ready', version })
       } catch (error) {
         if (generation !== this.generation || this.disposed) return this.current
         this.release = { kind: 'checked', version }
-        this.downloadResult?.(false, error instanceof DesktopUpdatePreparationError ? error.kind : 'download_failed')
         return this.setState(this.failure(error, 'download'))
       }
     }).finally(() => { this.downloadOperation = undefined })

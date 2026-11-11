@@ -50,7 +50,6 @@ jobs:
       build-key: ${{ steps.build-inputs.outputs.build-key }}
     env:
       DSH_PACKAGING_PRESET: ${{ inputs.preset }}
-      DSH_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v7.0.1
         with:

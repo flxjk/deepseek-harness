@@ -223,7 +223,7 @@ type StreamChunk =
 
 `snapshot()` 返回分离且不可变的 stream。`expandAssistantStream()` 会严格检查 record key、成员数、index、时间戳、tool-call identity 与无损 JSON，再重建精确的带时间 chunk 序列。Session 日志会把该 stream 嵌入作为 surface result 的 `assistant/message`，或嵌入没有 surface message 的 `assistant/attempt`。
 
-进程本地 `agent/assistant-stream` frame 承载实时呈现。持久回放与恢复校验仍会展开内嵌 settlement；遥测、token 记账与 Host 折叠直接读取紧凑记录。记录级读取器（`assistantStreamFirstTokenTime`、`assistantStreamHasVisibleContent`、`assistantStreamHasVisibleText`、`lastAssistantStreamChunk`、`assistantStreamChunks`、`joinAssistantStreamText`、`assembleAssistantStream` 以及按 run 的 `runFirstTokenTime` 与 `runFirstVisibleTime`）以提前退出在一次扫描内回答消费方问题，因此大历史每次结算的代价为 O(records) 而非 O(members) 展开（[折叠参考](../../packages/llm/llm/README.zh.md)）。`expandAssistantStream()` 仍是持久边界读取记录与需要每个成员的消费方的校验路径。
+进程本地 `agent/assistant-stream` frame 承载实时呈现。持久回放与恢复校验仍会展开内嵌 settlement；token 记账与 Host 折叠直接读取紧凑记录。记录级读取器（`assistantStreamFirstTokenTime`、`assistantStreamHasVisibleContent`、`assistantStreamHasVisibleText`、`lastAssistantStreamChunk`、`assistantStreamChunks`、`joinAssistantStreamText`、`assembleAssistantStream` 以及按 run 的 `runFirstTokenTime` 与 `runFirstVisibleTime`）以提前退出在一次扫描内回答消费方问题，因此大历史每次结算的代价为 O(records) 而非 O(members) 展开（[折叠参考](../../packages/llm/llm/README.zh.md)）。`expandAssistantStream()` 仍是持久边界读取记录与需要每个成员的消费方的校验路径。
 
 <a id="llmfailure"></a>
 
@@ -864,7 +864,7 @@ interface LlmCallConfigAdapterDefaults {
 
 `ctx.deepseekLlmApiExtensions` 是用于向 `deepseek-official` 请求添加顶层字段的提供方特定注册表。贡献插件通过 `register(field, provider)` 认领一个字段；适配器在序列化基础正文后调用 `prepare(request)`，并在 HTTP 前合并返回字段。已准备的 `accept()` 事务会在 2xx 后运行，因此贡献方可以提交交付状态，而不会把传输失败或提供方拒绝当作接受。贡献方准备时抛错会被记录并在该次请求中省略，接受失败只记录告警而不使请求失败；与基础字段冲突时使用 `REQUEST_EXTENSION` 并使模型请求失败。合并后的正文无法序列化时，请求不带扩展字段发出，跳过接受，并由提供方插件记录被省略的字段名。
 
-[协议参考](../deepseek-llm-api-wire-extensions.zh.md)定义确切的请求标头、扩展事务、字段版本和接收方义务。随附组合会将 [`dsh_session_log`](../../packages/session/session-log-deepseek/README.zh.md) 注册为无损增量权威日志后缀，并将 [`dsh_plugin_packages`](../../packages/llm/plugin-package-inventory-deepseek/README.zh.md) 注册为完整存活 Loader 包集合。这些字段仍位于模型消息之外，也不会进入 pi-ai 适配器路径。
+[协议参考](../deepseek-llm-api-wire-extensions.zh.md)定义确切的请求标头、扩展事务、字段版本和接收方义务。随附组合会将 [`dsh_plugin_packages`](../../packages/llm/plugin-package-inventory-deepseek/README.zh.md) 注册为完整存活 Loader 包集合。该字段仍位于模型消息之外，也不会进入 pi-ai 适配器路径。
 
 ## Pi-ai 请求头
 

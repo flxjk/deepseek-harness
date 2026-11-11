@@ -65,7 +65,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-无。评分、分类与备注是仅写日志的事件，不是模型输入。可选的 Session 日志投递使用请求元数据，而非模型上下文。
+无。评分、分类与备注是仅写日志的事件，不是模型输入。
 
 #### KV Cache 影响
 

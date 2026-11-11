@@ -309,7 +309,6 @@ describe('headless stream-json snapshots', () => {
       binScript: dshBinScript,
       configPath: autoShutdownOverlayPath,
       tsconfigPath,
-      env: { DSH_TELEMETRY_DISABLED: '1' },
     }
     const args = ['headless', '--patch', autoShutdownOverlayPath]
     let sessionId = ''
@@ -395,7 +394,6 @@ describe('headless stream-json snapshots', () => {
       tsconfigPath,
       env: {
         DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
       inspect: async (cwd) => {
@@ -435,7 +433,6 @@ describe('headless stream-json snapshots', () => {
       tsconfigPath,
       env: {
         DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
       inspect: async (cwd) => {
@@ -473,7 +470,6 @@ describe('headless stream-json snapshots', () => {
       tsconfigPath,
       expectedExitCode: 1,
       env: {
-        DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
     })
@@ -491,7 +487,6 @@ describe('headless stream-json snapshots', () => {
     const secondTask = 'Continue from the first wake of the resume proof.'
     const env = {
       DSH_PERMISSION_MODE: 'danger-full-access',
-      DSH_TELEMETRY_DISABLED: '1',
       NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
     }
     const cwd = await mkdtemp(join(tmpdir(), 'headless-session-resume-'))
@@ -555,7 +550,7 @@ describe('headless stream-json snapshots', () => {
         '--permission-mode', 'auto', '--approval-policy', 'never', '--json', 'Run the CLI probe.',
       ],
       tsconfigPath,
-      env: { DSH_AUTO_REVIEW_TEST_MODE: mode, DSH_TELEMETRY_DISABLED: '1' },
+      env: { DSH_AUTO_REVIEW_TEST_MODE: mode },
       inspect: async (cwd) => {
         const logs = await persistedLogs(cwd, join(cwd, '.dsh', 'sessions'))
         expect(logs).toHaveLength(1)
@@ -590,7 +585,7 @@ describe('headless stream-json snapshots', () => {
       label: 'headless absent Auto integration', tempDirPrefix: 'headless-auto-absent-',
       binScript: dshBinScript, configPath: headlessOverlayPath,
       binArgs: ['--profile', 'headless', '--patch', headlessOverlayPath, '--permission-mode', 'auto', '--json', 'Do it.'],
-      tsconfigPath, expectedExitCode: 1, env: { DSH_TELEMETRY_DISABLED: '1' },
+      tsconfigPath, expectedExitCode: 1,
     })
     const events = parseJsonl(result.stdout)
     expect(events).toHaveLength(1)
@@ -605,7 +600,7 @@ describe('headless stream-json snapshots', () => {
       const first = await runLoaderSmoke({
         label: 'headless Auto denied wake', cwd, binScript: dshBinScript, configPath: autoReviewOverlayPath,
         binArgs: [...args, '--permission-mode', 'auto', '--approval-policy', 'never', 'Run the CLI probe.'], tsconfigPath,
-        env: { DSH_AUTO_REVIEW_TEST_MODE: 'deny', DSH_TELEMETRY_DISABLED: '1' },
+        env: { DSH_AUTO_REVIEW_TEST_MODE: 'deny' },
       })
       const sessionId = parseJsonl(first.stdout)[0]?.sessionId
       if (typeof sessionId !== 'string') throw new Error('missing Auto Session identity')
@@ -615,7 +610,7 @@ describe('headless stream-json snapshots', () => {
       const second = await runLoaderSmoke({
         label: 'headless Auto authorized wake', cwd, binScript: dshBinScript, configPath: autoReviewOverlayPath,
         binArgs: [...args, '--session-id', sessionId, 'I authorize the exact CLI probe. Retry it.'], tsconfigPath,
-        env: { DSH_AUTO_REVIEW_TEST_MODE: 'allow', DSH_TELEMETRY_DISABLED: '1' },
+        env: { DSH_AUTO_REVIEW_TEST_MODE: 'allow' },
         inspect: async (directory) => {
           const logs = await persistedLogs(directory, join(directory, '.dsh', 'sessions'))
           expect(logs).toHaveLength(1)
@@ -646,7 +641,6 @@ describe('headless stream-json snapshots', () => {
       expectedExitCode: 1,
       env: {
         DSH_CLI_MOCK_FAILURE: '1',
-        DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
     })
@@ -670,7 +664,6 @@ describe('headless stream-json snapshots', () => {
       tsconfigPath,
       env: {
         DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
     })

@@ -84,7 +84,6 @@ export function registerVisualIntentCases(selected: readonly DocumentFormat[], o
         // The CLI fixture and its log live outside the workspace; bwrap's private /tmp hides both.
         env: { DSH_PRIMARY_RUNTIME: runtime, DSH_PERMISSION_MODE: 'danger-full-access',
           DSH_HOME: join(controlRoot, 'home'), DSH_AGENTS_HOME: join(controlRoot, 'agents'),
-          DSH_TELEMETRY_DISABLED: '1',
           TMPDIR: previewRoot, TMP: previewRoot, TEMP: previewRoot,
           HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY },
         async prepare(cwd) {

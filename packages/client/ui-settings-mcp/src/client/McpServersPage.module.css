@@ -1,0 +1,178 @@
+/* MCP servers page: the server rows, their status lines, and the editor form. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-3);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.empty {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-settings-card-fill);
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.namespace {
+  margin: 0;
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.problem {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transportPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
+}
+
+.input {
+  display: block;
+}
+
+.textarea {
+  min-height: 66px;
+  padding: 8px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-3);
+  font-family: var(--ds-font-family-code);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
+  resize: vertical;
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-state-business-primary);
+}
+
+.textarea:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+
+.textarea[aria-invalid='true'] {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.invalid {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-state-error-primary);
+}

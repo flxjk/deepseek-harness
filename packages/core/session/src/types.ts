@@ -433,6 +433,23 @@ export interface SessionEventMap {
    * so tolerating concurrent writers needs a signal beyond the log.
    */
   'session/end-seed': { inherited?: true }
+  /**
+   * Read-compatibility vocabulary for sessions written while the DeepSeek
+   * Session-log upload existed. No current producer appends this marker and
+   * nothing interprets it; it stays declared because the persistence read path
+   * refuses a stored type outside {@link KNOWN_SESSION_EVENT_TYPES} unless the
+   * event carries the envelope's `ignorable` marker, and recorded markers are
+   * not ignorable. Removing the declaration would make previously written
+   * sessions unreadable.
+   */
+  'session-log-deepseek/delivery-accepted': {
+    /** Session identity the accepted delivery carried; inherited fork markers retain the parent's id. */
+    sessionId: SessionId
+    /** Accepted Session format generation; absence identifies version 0. */
+    sessionFormatVersion?: number
+    /** Last canonical event included in the accepted request. */
+    throughSeq: SessionSeq
+  }
 }
 
 /** The appendable event-type keys of {@link SessionEventMap}, plugin-merged extensions included. */

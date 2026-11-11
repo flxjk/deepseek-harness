@@ -1316,7 +1316,6 @@ describe('Python release workflows', () => {
     expect(installedRealApiWindows).toMatchObject({ shell: 'pwsh' })
     expect(JSON.stringify(installedRealApiWindows)).toContain('--scenario sdk-live --installed-wheel')
     expect(manylinuxSmoke).toMatchObject({ if: "runner.os == 'Linux'" })
-    expect(JSON.stringify(manylinuxSmoke)).toContain('-e DSH_TELEMETRY_DISABLED')
   })
 
   it.each([

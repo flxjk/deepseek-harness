@@ -188,7 +188,6 @@ describe('PiAiAdapter provider routing', () => {
       thinking: { type: 'enabled' },
       reasoning_effort: 'max',
     })
-    expect(server.requests[0]).not.toHaveProperty('dsh_session_log')
     expect(server.requests[0]).not.toHaveProperty('dsh_plugin_packages')
   })
 

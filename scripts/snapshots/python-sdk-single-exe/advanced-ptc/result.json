@@ -297,16 +297,6 @@
       }
     },
     {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 20,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 19
-      }
-    },
-    {
       "type": "assistant/message",
       "seq": 21,
       "time": 0,
@@ -561,16 +551,6 @@
       }
     },
     {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 30,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 29
-      }
-    },
-    {
       "type": "assistant/message",
       "seq": 31,
       "time": 0,
@@ -791,16 +771,6 @@
       "data": {
         "turn": 1,
         "step": 3
-      }
-    },
-    {
-      "type": "session-log-deepseek/delivery-accepted",
-      "seq": 38,
-      "time": 0,
-      "data": {
-        "sessionId": "{{parent}}",
-        "sessionFormatVersion": 4,
-        "throughSeq": 37
       }
     },
     {
@@ -1415,22 +1385,6 @@
       "payload": {
         "sessionId": "{{parent}}",
         "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 20,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 19
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
           "type": "assistant/message",
           "seq": 21,
           "time": 0,
@@ -1739,22 +1693,6 @@
       "payload": {
         "sessionId": "{{parent}}",
         "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 30,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 29
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
           "type": "assistant/message",
           "seq": 31,
           "time": 0,
@@ -2011,22 +1949,6 @@
           "data": {
             "turn": 1,
             "step": 3
-          }
-        }
-      }
-    },
-    {
-      "method": "session.event",
-      "payload": {
-        "sessionId": "{{parent}}",
-        "event": {
-          "type": "session-log-deepseek/delivery-accepted",
-          "seq": 38,
-          "time": 0,
-          "data": {
-            "sessionId": "{{parent}}",
-            "sessionFormatVersion": 4,
-            "throughSeq": 37
           }
         }
       }
