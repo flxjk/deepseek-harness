@@ -285,7 +285,8 @@ function TextLineField(props: {
   return (
     <div className={css.field}>
       <label className={css.label} htmlFor={props.id}>{props.label}</label>
-      <Input id={props.id} className={css.input} value={props.text} disabled={props.disabled}
+      <Input id={props.id} {...(css.input === undefined ? {} : { className: css.input })}
+        value={props.text} disabled={props.disabled}
         aria-invalid={props.invalid !== undefined} aria-describedby={messageId}
         onChange={(event) => { props.onEdit(event.target.value) }} />
       <p id={messageId} className={props.invalid === undefined ? css.hint : css.invalid}>

@@ -91,17 +91,28 @@ export interface McpSettings {
 }
 
 /**
- * One entry as this page writes it: the transport fields it edits, plus the
- * budgets and reconnect policy it carries over from the entry it replaces.
- * Absent ones are filled by the manager's schema.
+ * One entry as this page writes it: exactly the fields of the transport the
+ * entry uses, plus the budgets and reconnect policy it carries over from the
+ * entry it replaces. Absent ones are filled by the manager's schema, so a
+ * stdio write never spells the streamable-http fields and the other way around.
  */
-export type McpServerEntryWrite =
-  Omit<McpServerEntry, 'startupTimeoutMs' | 'reconnect' | 'toolCallTimeoutMs' | 'closeTimeoutMs'>
-  & McpCarriedFields
+export type McpServerEntryWrite = McpStdioEntryWrite | McpStreamableHttpEntryWrite
 
 /** Fields this page preserves from the entry it replaces but does not edit. */
 type McpCarriedFields =
   Partial<Pick<McpServerEntry, 'startupTimeoutMs' | 'reconnect' | 'toolCallTimeoutMs' | 'closeTimeoutMs'>>
+
+/** The stdio variant of one write. */
+type McpStdioEntryWrite =
+  Pick<McpServerEntry, 'enabled' | 'command' | 'args' | 'env' | 'cwd'>
+  & McpCarriedFields
+  & { transport: 'stdio' }
+
+/** The streamable-http variant of one write. */
+type McpStreamableHttpEntryWrite =
+  Pick<McpServerEntry, 'enabled' | 'url' | 'headers'>
+  & McpCarriedFields
+  & { transport: 'streamable-http' }
 
 /** Why a staged draft cannot be written. */
 export type McpDraftProblem =
@@ -342,6 +353,22 @@ export function draftOf(name: string, entry: McpServerEntry | undefined): McpSer
 }
 
 /**
+ * The budgets and reconnect policy one write carries over from the entry it
+ * replaces.
+ * @param existing - the entry being replaced, or undefined while adding.
+ * @returns the carried fields, empty while adding.
+ */
+function carriedFields(existing: McpServerEntry | undefined): McpCarriedFields {
+  if (existing === undefined) return {}
+  return {
+    startupTimeoutMs: existing.startupTimeoutMs,
+    reconnect: existing.reconnect,
+    ...existing.toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs: existing.toolCallTimeoutMs },
+    ...existing.closeTimeoutMs === undefined ? {} : { closeTimeoutMs: existing.closeTimeoutMs },
+  }
+}
+
+/**
  * Build the entry one staged draft writes, or name why it cannot be written.
  * @param draft - the staged transport fields.
  * @param existing - the entry being replaced, whose unedited fields are carried over.
@@ -357,12 +384,7 @@ export function draftEntry(
   if (name === '') return { ok: false, problem: { kind: 'nameEmpty' } }
   if (!SERVER_NAME_PATTERN.test(name)) return { ok: false, problem: { kind: 'nameInvalid' } }
   if (nameTaken) return { ok: false, problem: { kind: 'nameTaken' } }
-  const carried: McpCarriedFields = existing === undefined ? {} : {
-    startupTimeoutMs: existing.startupTimeoutMs,
-    reconnect: existing.reconnect,
-    ...existing.toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs: existing.toolCallTimeoutMs },
-    ...existing.closeTimeoutMs === undefined ? {} : { closeTimeoutMs: existing.closeTimeoutMs },
-  }
+  const carried = carriedFields(existing)
   const enabled = existing?.enabled ?? true
   if (draft.transport === 'stdio') {
     if (draft.command.trim() === '') return { ok: false, problem: { kind: 'commandRequired' } }
@@ -380,6 +402,25 @@ export function draftEntry(
   const headers = parsePairLines(draft.headersText, ':')
   if (!headers.ok) return { ok: false, problem: { kind: 'headersLine', line: headers.line } }
   return { ok: true, entry: { ...carried, enabled, transport: 'streamable-http', url: draft.url.trim(), headers: headers.value } }
+}
+
+/**
+ * Project one configured entry onto the write variant its transport names, so
+ * a write replacing the whole record leaves every other entry unchanged.
+ * @param entry - the configured entry.
+ * @returns the entry as this page writes it.
+ */
+function writeOf(entry: McpServerEntry): McpServerEntryWrite {
+  const carried = carriedFields(entry)
+  return entry.transport === 'stdio'
+    ? {
+      ...carried, enabled: entry.enabled, transport: 'stdio',
+      command: entry.command, args: entry.args, env: entry.env, cwd: entry.cwd,
+    }
+    : {
+      ...carried, enabled: entry.enabled, transport: 'streamable-http',
+      url: entry.url, headers: entry.headers,
+    }
 }
 
 /**
@@ -448,7 +489,7 @@ export class McpServersController {
     const name = draft.name.trim()
     const outcome = draftEntry(draft, undefined, this.servers()[name] !== undefined)
     if (!outcome.ok) return Promise.resolve(false)
-    return this.write(name, servers => ({ ...servers, [name]: outcome.entry }))
+    return this.write(name, servers => ({ ...this.writeRecord(servers), [name]: outcome.entry }))
   }
 
   /**
@@ -462,7 +503,7 @@ export class McpServersController {
     if (existing === undefined) return Promise.resolve(false)
     const outcome = draftEntry(draft, existing, false)
     if (!outcome.ok) return Promise.resolve(false)
-    return this.write(name, servers => ({ ...servers, [name]: outcome.entry }))
+    return this.write(name, servers => ({ ...this.writeRecord(servers), [name]: outcome.entry }))
   }
 
   /**
@@ -473,7 +514,7 @@ export class McpServersController {
   setEnabled(name: string, enabled: boolean): void {
     const entry = this.servers()[name]
     if (entry === undefined) return
-    void this.write(name, servers => ({ ...servers, [name]: { ...entry, enabled } }))
+    void this.write(name, servers => ({ ...this.writeRecord(servers), [name]: writeOf({ ...entry, enabled }) }))
   }
 
   /**
@@ -484,7 +525,7 @@ export class McpServersController {
     if (this.servers()[name] === undefined) return
     void this.write(name, (servers) => {
       const next: Record<string, McpServerEntryWrite> = {}
-      for (const [key, value] of Object.entries(servers)) if (key !== name) next[key] = value
+      for (const [key, value] of Object.entries(servers)) if (key !== name) next[key] = writeOf(value)
       return next
     })
   }
@@ -665,6 +706,18 @@ export class McpServersController {
   /** The accepted `servers` record, or an empty one before the first section arrives. */
   private servers(): Readonly<Record<string, McpServerEntry>> {
     return this.scope.getSnapshot().value?.servers ?? {}
+  }
+
+  /**
+   * Every accepted entry as the write variant its transport names, so one
+   * write replaces the record without disturbing another entry.
+   * @param servers - the record the Host last accepted.
+   * @returns the record as this page writes it.
+   */
+  private writeRecord(servers: Readonly<Record<string, McpServerEntry>>): Record<string, McpServerEntryWrite> {
+    const next: Record<string, McpServerEntryWrite> = {}
+    for (const [key, entry] of Object.entries(servers)) next[key] = writeOf(entry)
+    return next
   }
 
   /** What the page renders now. */
