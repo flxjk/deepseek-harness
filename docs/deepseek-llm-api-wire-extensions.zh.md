@@ -12,6 +12,8 @@
 |---|---|---|
 | HTTP 字段名 | 小写 kebab-case；HTTP 匹配仍不区分大小写 | `user-agent`, `x-deepseek-harness-session-id` |
 | DeepSeek 请求正文扩展字段 | 使用保留 `dsh_` 前缀的 snake case | `dsh_plugin_packages` |
+| DSH 持有的嵌套 JSON 成员 | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
+| 带标签的值 | 使用 kebab-case 字符串；持久事件采用 `domain/action` | `session-log-deepseek/delivery-accepted` |
 
 每个正文扩展独立持有自身的 `version`。版本仅适用于包含该字段的对象；不同字段的版本之间不存在兼容或排序关系。JSON 成员顺序不属于协议。
 
@@ -21,7 +23,7 @@
 
 | 标头 | 出现条件 | 值 |
 |---|---|---|
-| `user-agent` | 每个提供方 HTTP 请求，包括 Files API 操作 | 采用 `product/version (+url)` 形式的应用身份；默认产品为 `deepseek-harness` |
+| `user-agent` | 每个提供方 HTTP 请求，包括 Files API 操作 | 采用 `product/version (+url)` 形式的应用身份，其后追加命名所启动 profile 的 `dsh-profile/<profile>`，`tchar` 以外的字节及 `%` 做百分号编码（例如 `dsh-profile/desktop`、`dsh-profile/web`、`dsh-profile/sdk`）；默认产品为 `deepseek-harness` |
 | `x-deepseek-harness-session-id` | 携带会话 id 的模型请求 | 确切的请求 `sessionId` 字符串 |
 | `x-deepseek-harness-compact` | 用途为 `compaction` 的模型请求 | 字面字符串 `1` |
 
@@ -70,6 +72,6 @@
 
 ## 暴露内容与接收方要求
 
-请求标头会暴露 Harness 应用版本和可选的会话身份。`dsh_plugin_packages` 会暴露存活 npm 包的名称与版本。适配器 API key 不是会话事件，因此绝不会进入扩展字段。通过 `baseURL` 选择的网关会收到与官方端点相同的值。
+请求标头会暴露 Harness 应用版本，以及请求携带时的会话身份。 `dsh_plugin_packages` 会暴露存活 npm 包的名称与版本。 通过 `baseURL` 选择的网关会收到与官方端点相同的值。
 
-接收方按名称定位扩展字段，按各字段自己的 `version` 分派，保留不同的包版本，并忽略 JSON 成员顺序。即使缺少注册表或某项贡献，基础请求仍然可用；字段缺失表示该项贡献不适用于本次请求。
+接收方按名称定位扩展字段，按各字段自己的 `version` 分派，保留不同的包版本，并忽略 JSON 成员顺序。即使缺少注册表或插件包清单贡献，基础请求仍然可用；字段缺失表示该贡献不适用于本次请求。

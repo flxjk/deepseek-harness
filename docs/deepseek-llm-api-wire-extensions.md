@@ -12,6 +12,8 @@ The adapter sends the additions to its resolved `baseURL`, including a configure
 |---|---|---|
 | HTTP field names | Lowercase kebab-case; HTTP matching remains case-insensitive | `user-agent`, `x-deepseek-harness-session-id` |
 | DeepSeek request-body extension fields | Snake case with the reserved `dsh_` prefix | `dsh_plugin_packages` |
+| DSH-owned nested JSON members | Camel case | `afterSeq`, `throughSeq`, `sessionId` |
+| Tagged values | Kebab-case strings; durable events use `domain/action` | `session-log-deepseek/delivery-accepted` |
 
 Each body extension owns its `version` independently. A version applies only to the object that contains it; no compatibility or ordering relationship exists between versions of different fields. JSON member order is not part of the protocol.
 
@@ -21,7 +23,7 @@ The [`DeepSeekLlmApiExtensionRegistry`](../packages/llm/deepseek-llm-api-extensi
 
 | Header | Presence | Value |
 |---|---|---|
-| `user-agent` | Every provider HTTP request, including Files API operations | Application identity in `product/version (+url)` form; the default product is `deepseek-harness` |
+| `user-agent` | Every provider HTTP request, including Files API operations | Application identity in `product/version (+url)` form, followed by `dsh-profile/<profile>` naming the booted profile, percent-encoded outside `tchar` and for `%` (for example `dsh-profile/desktop`, `dsh-profile/web`, `dsh-profile/sdk`); the default product is `deepseek-harness` |
 | `x-deepseek-harness-session-id` | Model requests carrying a Session id | The exact request `sessionId` string |
 | `x-deepseek-harness-compact` | Model requests whose purpose is `compaction` | The literal string `1` |
 
@@ -70,6 +72,6 @@ An enabled inventory with no qualifying entries sends `packages: []`; disabling 
 
 ## Exposure and receiver requirements
 
-The request headers expose the Harness application version and an optional Session identity. `dsh_plugin_packages` exposes active npm package names and versions. Adapter API keys are not Session events and therefore never enter an extension field. A gateway selected through `baseURL` receives the same values as the official endpoint.
+The request headers expose the Harness application version and an optional Session identity. `dsh_plugin_packages` exposes active npm package names and versions. A gateway selected through `baseURL` receives the same values as the official endpoint.
 
-Receivers address extension fields by name, dispatch each field by its own `version`, preserve distinct package versions, and ignore JSON member ordering. The base request remains usable without either the registry or a particular contribution; field absence means that contribution did not apply to that request.
+Receivers address extension fields by name, dispatch each field by its own `version`, preserve distinct package versions, and ignore JSON member ordering. The base request remains usable without the registry or plugin-package contributor; an absent field means that contribution did not apply to the request.

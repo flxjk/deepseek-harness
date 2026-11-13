@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Servidores MCP",
+    "description": "Añade servidores MCP, consulta su estado en vivo y reinícialos o sondeálos."
+  }
+}

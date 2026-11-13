@@ -134,7 +134,7 @@
         "content": [
           {
             "type": "text",
-            "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+            "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n</system-reminder>"
           }
         ],
         "source": {
@@ -310,7 +310,7 @@
               "type": "tool-call",
               "id": "advanced-code",
               "name": "run_code",
-              "arguments": "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+              "arguments": "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
             }
           ],
           "source": {
@@ -365,7 +365,7 @@
             "dt": [],
             "id": "advanced-code",
             "args": [
-              "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+              "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
             ]
           },
           {
@@ -378,7 +378,7 @@
                 "type": "tool-call",
                 "id": "advanced-code",
                 "name": "run_code",
-                "arguments": "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+                "arguments": "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
               }
             }
           },
@@ -429,7 +429,7 @@
         "step": 1,
         "callId": "advanced-code",
         "name": "run_code",
-        "arguments": "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+        "arguments": "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
       }
     },
     {
@@ -520,7 +520,7 @@
           "content": [
             {
               "type": "text",
-              "text": "42"
+              "text": "42\n"
             }
           ],
           "isError": false,
@@ -564,7 +564,7 @@
               "type": "tool-call",
               "id": "advanced-denied-ptc",
               "name": "run_code",
-              "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+              "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
             }
           ],
           "source": {
@@ -619,7 +619,7 @@
             "dt": [],
             "id": "advanced-denied-ptc",
             "args": [
-              "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+              "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
             ]
           },
           {
@@ -632,7 +632,7 @@
                 "type": "tool-call",
                 "id": "advanced-denied-ptc",
                 "name": "run_code",
-                "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+                "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
               }
             }
           },
@@ -683,7 +683,7 @@
         "step": 2,
         "callId": "advanced-denied-ptc",
         "name": "run_code",
-        "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+        "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
       }
     },
     {
@@ -743,7 +743,7 @@
           "content": [
             {
               "type": "text",
-              "text": "Auto review rejected tool \"snapshot_double\"; its body was not executed"
+              "text": "Auto review rejected tool \"snapshot_double\"; its body was not executed\n"
             }
           ],
           "isError": false,
@@ -1174,7 +1174,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+                "text": "<system-reminder>\nThe following information describes your current session:\n\nCurrent working directory: \"{{cwd}}\".\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n</system-reminder>"
               }
             ],
             "source": {
@@ -1398,7 +1398,7 @@
                   "type": "tool-call",
                   "id": "advanced-code",
                   "name": "run_code",
-                  "arguments": "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+                  "arguments": "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
                 }
               ],
               "source": {
@@ -1453,7 +1453,7 @@
                 "dt": [],
                 "id": "advanced-code",
                 "args": [
-                  "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+                  "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
                 ]
               },
               {
@@ -1466,7 +1466,7 @@
                     "type": "tool-call",
                     "id": "advanced-code",
                     "name": "run_code",
-                    "arguments": "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+                    "arguments": "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
                   }
                 }
               },
@@ -1523,7 +1523,7 @@
             "step": 1,
             "callId": "advanced-code",
             "name": "run_code",
-            "arguments": "{\"code\": \"return await tools.snapshot_double({ value: 21 })\", \"description\": \"Call the configured Plugin tool\"}"
+            "arguments": "{\"code\": \"inspect(await tools.snapshot_double({ value: 21 }))\", \"description\": \"Call the configured Plugin tool\"}"
           }
         }
       }
@@ -1644,7 +1644,7 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "42"
+                  "text": "42\n"
                 }
               ],
               "isError": false,
@@ -1706,7 +1706,7 @@
                   "type": "tool-call",
                   "id": "advanced-denied-ptc",
                   "name": "run_code",
-                  "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+                  "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
                 }
               ],
               "source": {
@@ -1761,7 +1761,7 @@
                 "dt": [],
                 "id": "advanced-denied-ptc",
                 "args": [
-                  "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+                  "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
                 ]
               },
               {
@@ -1774,7 +1774,7 @@
                     "type": "tool-call",
                     "id": "advanced-denied-ptc",
                     "name": "run_code",
-                    "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+                    "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
                   }
                 }
               },
@@ -1831,7 +1831,7 @@
             "step": 2,
             "callId": "advanced-denied-ptc",
             "name": "run_code",
-            "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { return error.message }\", \"description\": \"Catch a structured inner tool denial\"}"
+            "arguments": "{\"code\": \"try { await tools.snapshot_double({ value: -1 }) } catch (error) { inspect(error.message) }\", \"description\": \"Catch a structured inner tool denial\"}"
           }
         }
       }
@@ -1909,7 +1909,7 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "Auto review rejected tool \"snapshot_double\"; its body was not executed"
+                  "text": "Auto review rejected tool \"snapshot_double\"; its body was not executed\n"
                 }
               ],
               "isError": false,

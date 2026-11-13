@@ -6,11 +6,11 @@
   en: 39729b071744e94b
   zh: f3a1913295e78b5f
 /official-deepseek-llm-api-wire-extensions/wire-namespaces-and-versioning:
-  en: 30927efe62b273fc
-  zh: 6dbe99a6df923258
+  en: 51b0958ac3f18ee2
+  zh: dbc146fb35acf3ae
 /official-deepseek-llm-api-wire-extensions/request-headers:
-  en: b21a5e3bd47a5683
-  zh: 7255e5af2d75f393
+  en: 949ce57defc4102f
+  zh: b797786dd55e984f
 /official-deepseek-llm-api-wire-extensions/body-extension-transaction:
   en: 48001cfd1281a23b
   zh: d410530ae8aa2823
@@ -18,5 +18,5 @@
   en: f89059050613f3e8
   zh: da5cf2a4eeb81b75
 /official-deepseek-llm-api-wire-extensions/exposure-and-receiver-requirements:
-  en: bcf0d9b648505d31
-  zh: 04b76f06962534f3
+  en: 97e28a0a15bb4da7
+  zh: 2230fb5e47d0e77e

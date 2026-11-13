@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "MCP servers",
+    "description": "Add MCP servers, watch their live status, and restart or probe them."
+  }
+}
