@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,22 +19,32 @@ describe('provider metadata', () => {
 
   it('checks the staged snapshot even when the working file is fresh, without changing either', () => {
     const fixture = mkdtempSync(join(tmpdir(), 'dsh-provider-data-'))
+    const packagePath = 'packages/llm/llm-pi-ai'
     const relative = 'packages/llm/llm-pi-ai/src/provider-data.generated.ts'
+    const entry = join(fixture, packagePath, 'scripts/gen-provider-data.ts')
     const snapshot = readFileSync(new URL('../src/provider-data.generated.ts', import.meta.url), 'utf8')
-    const git = (args: readonly string[]): string => execFileSync('git', [...args], { cwd: fixture, encoding: 'utf8' })
+    const environment = { ...process.env, GIT_DIR: undefined, GIT_WORK_TREE: undefined, GIT_INDEX_FILE: undefined }
+    const git = (args: readonly string[]): string => execFileSync('git', [...args], { cwd: fixture, encoding: 'utf8', env: environment })
     const check = (): string => execFileSync(process.execPath, [
-      fileURLToPath(new URL('../scripts/gen-provider-data.ts', import.meta.url)), '--check', '--cached',
+      entry, '--check', '--cached',
     ], {
       cwd: fixture, encoding: 'utf8', stdio: 'pipe',
-      env: { ...process.env, GIT_DIR: join(fixture, '.git'), GIT_WORK_TREE: fixture },
+      env: environment,
     })
     try {
       git(['init', '-q'])
+      // The CLI's repository root and its Git index both belong to this fixture.
+      mkdirSync(join(fixture, packagePath, 'scripts'), { recursive: true })
+      copyFileSync(new URL('../scripts/gen-provider-data.ts', import.meta.url), entry)
+      copyFileSync(new URL('../package.json', import.meta.url), join(fixture, packagePath, 'package.json'))
+      symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), join(fixture, packagePath, 'node_modules'), 'junction')
+      symlinkSync(fileURLToPath(new URL('../../../../node_modules', import.meta.url)), join(fixture, 'node_modules'), 'junction')
       mkdirSync(join(fixture, 'packages/llm/llm-pi-ai/src'), { recursive: true })
       writeFileSync(join(fixture, relative), `${snapshot}// stale staged snapshot\n`)
       git(['add', relative])
       writeFileSync(join(fixture, relative), snapshot)
       const staged = git(['show', `:${relative}`])
+      expect(staged).toBe(`${snapshot}// stale staged snapshot\n`)
       expect(check).toThrow('Provider metadata is stale')
       expect(git(['show', `:${relative}`])).toBe(staged)
       expect(readFileSync(join(fixture, relative), 'utf8')).toBe(snapshot)

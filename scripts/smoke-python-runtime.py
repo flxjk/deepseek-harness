@@ -127,7 +127,8 @@ SNAPSHOT_WORKFLOW_SCRIPT = (
     "return { reply }"
 )
 ADVANCED_SNAPSHOT_ROOT = Path(__file__).resolve().parent / "snapshots" / "python-sdk-single-exe"
-ADVANCED_SNAPSHOT_DIRECTORY = ADVANCED_SNAPSHOT_ROOT / "advanced"
+ADVANCED_SNAPSHOT_DIRECTORY = ADVANCED_SNAPSHOT_ROOT / "advanced-local-feedback"
+ADVANCED_PTC_SNAPSHOT_DIRECTORY = ADVANCED_SNAPSHOT_ROOT / "advanced-ptc-local-feedback"
 ADVANCED_SNAPSHOT_FILENAMES = (
     "result.json", "session.v4.jsonl", "session.1.v4.jsonl", "session.2.v4.jsonl",
 )
@@ -1871,7 +1872,7 @@ def smoke_sdk_snapshot_mode(
 
         files = build_snapshot_files(result, logs, child_ids, root)
         compare_snapshot_files(
-            files, update_snapshots, ADVANCED_SNAPSHOT_DIRECTORY if mode == "native" else ADVANCED_SNAPSHOT_ROOT / "advanced-ptc",
+            files, update_snapshots, ADVANCED_SNAPSHOT_DIRECTORY if mode == "native" else ADVANCED_PTC_SNAPSHOT_DIRECTORY,
             ADVANCED_SNAPSHOT_FILENAMES if mode == "native" else ("result.json", "session.v4.jsonl"),
             native_writer_output=True,
         )

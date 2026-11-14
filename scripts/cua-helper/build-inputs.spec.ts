@@ -218,7 +218,7 @@ it.each(['test', 'production'])('computes the same %s build key through selectio
     .toBe(cuaHelperBuildKey(source, loadDesktopPackageEnvironment('darwin', environment), run))
 })
 
-// A private POSIX PATH exposes only Git, so successful CLI execution cannot depend on gh.
+// A private POSIX PATH exposes only Git; its shim preserves the selected Git executable's own runtime environment.
 it.skipIf(process.platform === 'win32').each(['match', 'miss', 'api failure', 'missing token'])(
   'runs the plain-Node selector entry with %s and without gh or node_modules', (scenario) => {
     const f = fixture()
@@ -240,7 +240,15 @@ it.skipIf(process.platform === 'win32').each(['match', 'miss', 'api failure', 'm
     const bin = join(f.root, 'git-only-bin')
     mkdirSync(bin)
     const git = execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim()
-    symlinkSync(git, join(bin, 'git'))
+    writeFileSync(join(bin, 'git'), `#!${process.execPath}
+const { spawnSync } = require('node:child_process');
+const result = spawnSync(${JSON.stringify(git)}, process.argv.slice(2), {
+  stdio: 'inherit', env: { ...process.env, PATH: ${JSON.stringify(process.env.PATH ?? '')} },
+});
+if (result.error) throw result.error;
+if (result.signal) process.kill(process.pid, result.signal);
+process.exit(result.status ?? 1);
+`, { mode: 0o755 })
     const preload = join(f.root, 'mock-github.mjs')
     writeFileSync(preload, `import { readFileSync } from 'node:fs';
 const data = JSON.parse(readFileSync(process.env.FIXTURE_API_DATA, 'utf8'));
