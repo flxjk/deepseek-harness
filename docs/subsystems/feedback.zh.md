@@ -305,7 +305,7 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 ## 边界与限制
 
 - 操作队列仅在进程内生效；cold 写入排他性依赖所选持久化提供方。
-- 删除只移除当前条目，不会抹除 append-only 日志或已投递后缀中的早先备注。
+- 删除只移除当前条目，不会抹除 append-only 日志中的早先备注。
 - 请求若恰好落在 live detach 之后、persistence catalog 物化 header 之前的极短窗口，可能收到 `session-not-found`；调用方应在 retirement materialization 后重试。
 - cold 请求读取完整日志；服务没有条目数或聚合字节上限。`maxNoteBytes` 只限制每条备注。
 - Host 约定不记录已认证的 actor 或审计身份，因此假设调用方边界可信。
@@ -313,6 +313,24 @@ fork 种子可以包含父 Session 的反馈事件，但 payload 保留父级 `s
 - Web 控制器不消费反馈日志事件，因此另一个标签页的评分要等到重连或下一次冲突响应才可见，不会立即出现。
 - 弹窗不预先校验 `maxNoteBytes`；针对消息的超长描述在提交时以 `note-too-large` 失败，而不是在输入过程中。Session 级备注没有大小上限，`/feedback` 命令从来也没有。
 - `sessionFeedback.record` 只服务 live Session，否则回答 `session-not-found`；弹窗打开期间 Session 退役时，弹窗会报告该失败。
+
+## 导出日志中的反馈
+
+本节面向从导出的 Session 日志中筛选已评价 Session 的使用方。反馈事件包含以下 `data` 字段：
+
+| 事件 | 评价对象 | `data` | 含义 |
+|---|---|---|---|
+| `feedback/record` | 整个 Session | `text?`、`category?` | 一条不可变备注。`/feedback <text>` 只记录 `text`；Web 弹窗记录所选 `category` 和填写的 `text`，两者均可选；两个字段都缺失的记录也有效。 |
+| `feedback/message-put` | 一条 assistant 消息 | `sessionId`，以及含 `messageId`、`rating`、`note?`、`category?`、`version`、`createdAt`、`updatedAt` 的 `item` | 创建或编辑后的完整当前值 |
+| `feedback/message-delete` | 一条 assistant 消息 | `sessionId`、`messageId` | 撤回当前值 |
+
+按以下规则推导反馈：
+
+1. 统计 Session 自身的反馈时，排除 `seq` 小于 `session.seed_length`（仅 seeded Session 携带）的反馈事件，以及 `data.sessionId` 与该 Session 的 ID 不同的 `feedback/message-*` 事件。其他事件，包括继承前缀，都保留给后续规则使用。
+2. 在同一 Session 内，`feedback/message-put` 按 `data.item.messageId` 分组，`feedback/message-delete` 按 `data.messageId` 分组；`seq` 最大的事件为当前值，该事件为 `feedback/message-delete` 时表示当前没有反馈。较早的 put 保留为编辑历史。
+3. 被评价的回复是 `data.message.id` 等于 `data.item.messageId` 的 append-origin `assistant/message`；在 seeded Session 中它可能位于继承前缀。该事件的 `data.turn` 标识所属轮次，截至该事件的全部事件可以还原当时的对话状态。
+
+服务和事件都不记录操作者。Host 插件和运行时扩展可以调用 `sessionFeedback.record` 和 `messageFeedback.put`，或直接追加这些事件；Client 插件可以调用同样的 Remote。因此导出的反馈字段可能包含插件写入的状态。文本内容不能确定写入者；针对特定插件的识别规则由使用方的工具负责。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
