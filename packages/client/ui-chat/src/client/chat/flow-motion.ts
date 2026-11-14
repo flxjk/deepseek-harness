@@ -7,8 +7,7 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react'
 import { useSearchableHidden, type HiddenTransition } from './searchable-hidden.ts'
 
-const FADE_OUT_MS = 70
-/** The box starts closing while the fade finishes; by then the row is nearly transparent. */
+/** Hold the box at its current size briefly before it shrinks with the flow. */
 const CLOSE_DELAY_MS = 50
 const CLOSE_MS = 110
 const SETTLE_SLACK_MS = 80
@@ -278,7 +277,8 @@ export function createFlowMotion(
         if (box.closing) {
           box.element.style.height = `${box.height * (1 - progress)}px`
           box.element.style.marginTop = `${box.marginTop * (1 - progress)}px`
-          box.element.style.opacity = travelling.has(box.element) ? '1' : String(Math.max(0, 1 - elapsed / FADE_OUT_MS))
+          // A stationary row stays visible while it occupies layout space; its last pixel fades with its height.
+          box.element.style.opacity = travelling.has(box.element) ? '1' : String(1 - progress)
         } else {
           box.element.style.height = `${box.fromHeight + (box.height - box.fromHeight) * progress}px`
           box.element.style.marginTop = `${box.fromMarginTop + (box.marginTop - box.fromMarginTop) * progress}px`
@@ -402,7 +402,7 @@ export function createFlowMotion(
     style.marginTop = `${marginTop}px`
     if (!held) {
       void element.offsetHeight
-      style.transition = `opacity ${FADE_OUT_MS}ms ${EASING}, `
+      style.transition = `opacity ${CLOSE_MS}ms ${EASING} ${CLOSE_DELAY_MS}ms, `
         + `height ${CLOSE_MS}ms ${EASING} ${CLOSE_DELAY_MS}ms, margin-top ${CLOSE_MS}ms ${EASING} ${CLOSE_DELAY_MS}ms`
       style.opacity = '0'
       style.height = '0px'

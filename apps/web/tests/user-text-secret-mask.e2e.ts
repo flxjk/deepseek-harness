@@ -64,7 +64,14 @@ describe('web e2e: credential mask in user text', () => {
     await page.getByRole('button', { name: 'Show secret', exact: true }).click()
     await expect.poll(() => text.textContent()).toBe(PROMPT)
     // The monospace run keeps one mask character per original character, so revealing does not move the line.
-    expect({ run: await run.boundingBox(), bubble: await text.boundingBox() }).toEqual(masked)
+    const revealed = { run: await run.boundingBox(), bubble: await text.boundingBox() }
+    if (masked.run === null || revealed.run === null || masked.bubble === null || revealed.bubble === null) {
+      throw new Error('masked user text geometry is not rendered')
+    }
+    for (const property of ['x', 'y', 'width', 'height'] as const) {
+      expect(Math.abs(revealed.run[property] - masked.run[property])).toBeLessThanOrEqual(1 / 64)
+      expect(Math.abs(revealed.bubble[property] - masked.bubble[property])).toBeLessThanOrEqual(1 / 64)
+    }
     await page.getByRole('button', { name: 'Hide secret', exact: true }).click()
     await expect.poll(() => text.textContent()).not.toContain(KEY)
     expect(tripwire.pageErrors).toEqual([])

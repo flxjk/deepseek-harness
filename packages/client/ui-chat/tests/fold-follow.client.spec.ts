@@ -174,6 +174,17 @@ it('keeps the reader landing while reader movement awaits sampling', async () =>
   vi.advanceTimersByTime(500)
 })
 
+it('lets visible folding rows travel when the reader has no surviving anchor', async () => {
+  const h = fixture({ earlier: 100, later: 500, top: 100, following: false })
+  h.viewport.motion.collapse(h.row, () => { h.row.hidden = true; h.grow(600) })
+  await Promise.resolve()
+  runFrameCount(6)
+  expect(h.row.style.translate).toBe('')
+  expect(h.row.style.opacity).toBe('1')
+  runFrames()
+  expect(h.row.hidden).toBe(true)
+})
+
 /** Stub the size observer so a test can mark the layout a following reader last saw painted. */
 function observePaint(): () => void {
   let observe = (): void => {}

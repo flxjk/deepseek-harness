@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { chromium } from 'playwright'
+import { chromium, type Locator, type Page } from 'playwright'
 import { expect, it } from 'vitest'
 import { ToolCallId, createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
@@ -14,6 +14,24 @@ const COMMAND = 'node ./scripts/start-worker.mjs --workspace=/tmp/diagnostics/lo
 const ARGS = { command: COMMAND, description: 'Start the diagnostic worker', run_in_background: true }
 const OUTPUT = 'started background job bash-1'
 const LONG_ARGS = { ...ARGS, command: `${COMMAND} --token=${'x'.repeat(1024)}` }
+
+/**
+ * Return a focused terminal header to its start with the host's scroll gesture.
+ * @param page - Browser page with the focused command card.
+ * @param header - The command card's vertical scrollport.
+ * @returns Completion after scrolling the header to its start.
+ */
+async function scrollHeaderToStart(page: Page, header: Locator): Promise<void> {
+  if (process.platform !== 'darwin') {
+    await page.keyboard.press('Home')
+    return
+  }
+  const bounds = await header.boundingBox()
+  if (bounds === null) throw new Error('Terminal header is not rendered')
+  const distance = await header.evaluate(element => element.scrollHeight + element.clientHeight)
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await page.mouse.wheel(0, -distance)
+}
 
 /** A settled shell call rendered from durable arguments and its original result. */
 function shellFixture(arguments_: typeof ARGS, output: string): string {
@@ -122,7 +140,7 @@ it.each([
             await page.keyboard.press('End')
             await expect.poll(() => inputSection.evaluate(element =>
               element.scrollTop + element.clientHeight >= element.scrollHeight - 1)).toBe(true)
-            await page.keyboard.press('Home')
+            await scrollHeaderToStart(page, inputSection)
             await expect.poll(() => inputSection.evaluate(element => element.scrollTop)).toBe(0)
           }
         }

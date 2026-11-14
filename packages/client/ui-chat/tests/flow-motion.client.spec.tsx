@@ -132,6 +132,8 @@ describe('flow motion', () => {
     expect(row.hasAttribute('hidden')).toBe(false)
     expect(row.style.opacity).toBe('0')
     expect(row.style.height).toBe('0px')
+    const transition = row.style.transition.match(/^opacity (.*), height (.*), margin-top /)
+    expect(transition?.[1]).toBe(transition?.[2])
     await Promise.resolve()
     expect(driver).toHaveBeenCalledTimes(1)
     transitionEnd(row, 'opacity')
@@ -258,6 +260,17 @@ describe('flow motion', () => {
     expect(changed.mock.calls).toEqual([[true], [false]])
     expect(motion.inputActive()).toBe(false)
     expectCleared(row)
+  })
+
+  it('fades a stationary closing row only as its height leaves the flow', async () => {
+    vi.useFakeTimers()
+    batchDriver()
+    const row = rowWithHeight(180)
+    motion.collapse(row, vi.fn())
+    await Promise.resolve()
+    vi.advanceTimersByTime(96)
+    expect(Number(row.style.opacity)).toBeCloseTo(Number.parseFloat(row.style.height) / 180, 4)
+    vi.advanceTimersByTime(400)
   })
 
   it('keeps a travelling box opaque and in the flow while it shrinks', async () => {

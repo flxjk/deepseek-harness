@@ -44,6 +44,7 @@ function runPnpm(args: string[], cwd: string, timeout: number): string {
 }
 
 describe('published document preview licenses', () => {
+  // Packing and inspecting the lazy chunks can exceed Vitest's 5 s default under GUI-lane load.
   it.skipIf(!existsSync(bundlePath))('keeps bundled licenses in the packed lazy chunks', ({ task }) => {
     expect(existsSync(pdfChunkPath)).toBe(true)
     const output = mkdtempSync(join(tmpdir(), 'dsh-document-preview-pack-'))
@@ -113,5 +114,5 @@ describe('published document preview licenses', () => {
     } finally {
       rmSync(output, { recursive: true, force: true })
     }
-  })
+  }, 30_000)
 })

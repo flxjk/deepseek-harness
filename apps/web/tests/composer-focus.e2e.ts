@@ -1,7 +1,7 @@
 /** Browser selection and focus after presses in the composer's unused space. */
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import { chromium, webkit, type Page } from 'playwright'
+import { chromium, webkit, type Browser, type Page } from 'playwright'
 import { expect, it, onTestFailed, onTestFinished } from 'vitest'
 import {
   assertFixtureInventory, compareOrRefreshGolden, launchWebScaffold, seedSession, watchConsole, webSnapshotMode,
@@ -11,6 +11,8 @@ import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './suppor
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/composer-focus', import.meta.url))
 const EXPECTED = join(SNAPSHOT_DIR, 'focus.expected.md')
+// Chromium on macOS uses Command+Arrow for editor navigation.
+const EDITOR_START = process.platform === 'darwin' ? 'Meta+ArrowUp' : 'Control+Home'
 
 /**
  * Observe focus and both ends of the browser selection, including its direction.
@@ -114,7 +116,7 @@ async function exerciseComposer(page: Page): Promise<string[]> {
   })
   await page.keyboard.insertText('alpha beta gamma')
   await expect.poll(() => input.getAttribute('data-selection-ready')).toBe('inserted')
-  await page.keyboard.press('Home')
+  await page.keyboard.press(EDITOR_START)
   for (let index = 0; index < 10; index++) await page.keyboard.press('ArrowRight')
   for (let index = 0; index < 4; index++) await page.keyboard.press('Shift+ArrowLeft')
   const selected = { focused: true, draft: 'alpha beta gamma', text: 'beta', anchor: 10, focus: 6 }
@@ -217,72 +219,104 @@ it('keeps mobile submission keyboard navigation in the composer while retaining 
     { engine: webkit, mobile: true, submission: 'Send' },
     { engine: webkit, mobile: true, submission: 'Enter' },
   ]) {
+    const platform = `${engine.name()} ${mobile ? 'mobile' : 'desktop'} ${submission}`
+    const prompt = 'Reply with a one-sentence description of event sourcing, then stop.'
     const scaffold = await launchWebScaffold({
       replayFixture: fileURLToPath(new URL('../../../snapshots/web/live-interactions/session.v3.jsonl', import.meta.url)),
       compareReplaySession: false,
     })
+    const failures: unknown[] = []
+    let browser: Browser | undefined
+    let page: Page | undefined
     try {
-      const browser = await engine.launch()
+      browser = await engine.launch()
+      page = await browser.newPage({
+        viewport: { width: mobile ? 390 : 1280, height: 844 },
+        locale: 'en-US', timezoneId: 'Asia/Shanghai',
+        ...mobile ? {
+          userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1',
+          isMobile: true, hasTouch: true,
+        } : {},
+      })
+      const tripwire = watchConsole(page)
+      let submittedSessionId: string | undefined
+      const requestedSessions = new Set<string>()
+      const endedSessions = new Set<string>()
+      const submittedRequestObserved = (): boolean => submittedSessionId !== undefined
+        && requestedSessions.has(submittedSessionId)
+      const submittedTurnEnded = (): boolean => submittedSessionId !== undefined
+        && endedSessions.has(submittedSessionId)
+      const off = scaffold.ctx.on('session/event', (session, event) => {
+        const sessionId = String(session.id)
+        if (event.type === 'user/message' && event.data.source.kind === 'user'
+          && event.data.content.filter(block => block.type === 'text').map(block => block.text).join('') === prompt) {
+          submittedSessionId = sessionId
+        }
+        if (event.type === 'request/header') requestedSessions.add(sessionId)
+        if (event.type === 'turn/end') endedSessions.add(sessionId)
+      })
       try {
-        const page = await browser.newPage({
-          viewport: { width: mobile ? 390 : 1280, height: 844 },
-          locale: 'en-US', timezoneId: 'Asia/Shanghai',
-          ...mobile ? {
-            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1',
-            isMobile: true, hasTouch: true,
-          } : {},
-        })
-        const tripwire = watchConsole(page)
-        const platform = `${engine.name()} ${mobile ? 'mobile' : 'desktop'} ${submission}`
-        let finished = false
-        const off = scaffold.ctx.on('session/event', (_session, event) => {
-          if (event.type === 'turn/end') finished = true
-        })
-        try {
-          await page.goto(scaffold.authenticatedUrl)
-          await connectFreshWorkspace(page, scaffold.workspaceCwd, `submission-${platform}`)
-          const input = page.locator('[data-composer-input][contenteditable="true"]')
-          await input.fill('Reply with a one-sentence description of event sourcing, then stop.')
+        await page.goto(scaffold.authenticatedUrl)
+        await connectFreshWorkspace(page, scaffold.workspaceCwd, `submission-${platform}`)
+        const input = page.locator('[data-composer-input][contenteditable="true"]')
+        await input.fill(prompt)
+        expect(await input.evaluate(element => document.activeElement === element)).toBe(true)
+        if (submission === 'Enter') await page.keyboard.press('Enter')
+        else {
+          const send = page.getByRole('button', { name: 'Send message', exact: true })
+          if (mobile) await send.tap()
+          else await send.click()
+        }
+        await expect.poll(() => input.textContent()).toBe('')
+        await expect.poll(() => input.evaluate(element => document.activeElement === element)).toBe(!mobile)
+        await expect.poll(() => submittedSessionId !== undefined, { timeout: 15_000 }).toBe(true)
+        await expect.poll(submittedRequestObserved, { timeout: 15_000 }).toBe(true)
+        await expect.poll(submittedTurnEnded, { timeout: 60_000 }).toBe(true)
+        expect(await input.evaluate(element => document.activeElement === element)).toBe(!mobile)
+        if (mobile) {
+          const card = page.locator('[data-composer-card]')
+          expect(await card.evaluate(element => document.activeElement === element)).toBe(true)
+          // Option+Tab includes buttons in WebKit's keyboard navigation mode.
+          const next = engine === webkit ? 'Alt+Tab' : 'Tab'
+          await page.keyboard.press(next)
           expect(await input.evaluate(element => document.activeElement === element)).toBe(true)
-          if (submission === 'Enter') await page.keyboard.press('Enter')
-          else {
-            const send = page.getByRole('button', { name: 'Send message', exact: true })
-            if (mobile) await send.tap()
-            else await send.click()
+          await page.keyboard.press(next)
+          const attachment = page.getByRole('button', { name: 'Add files or run commands', exact: true })
+          expect(await attachment.evaluate(element => document.activeElement === element)).toBe(true)
+          observations.push(`- ${platform}: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button`)
+        } else {
+          observations.push(`- ${platform}: clears the draft; editor stays focused through response completion`)
+        }
+        expect(tripwire.pageErrors).toEqual([])
+        if (webSnapshotMode() !== 'record') expect(tripwire.warnings).toEqual([])
+      } catch (error) {
+        failures.push(error)
+        if (page !== undefined) {
+          try {
+            await saveFailureShot(page, `web-e2e-composer-submission-${platform}`)
+          } catch (screenshotError) {
+            failures.push(screenshotError)
           }
-          await expect.poll(() => input.textContent()).toBe('')
-          await expect.poll(() => input.evaluate(element => document.activeElement === element)).toBe(!mobile)
-          await expect.poll(() => finished, { timeout: 60_000 }).toBe(true)
-          expect(await input.evaluate(element => document.activeElement === element)).toBe(!mobile)
-          if (mobile) {
-            const card = page.locator('[data-composer-card]')
-            expect(await card.evaluate(element => document.activeElement === element)).toBe(true)
-            // Option+Tab includes buttons in WebKit's keyboard navigation mode.
-            const next = engine === webkit ? 'Alt+Tab' : 'Tab'
-            await page.keyboard.press(next)
-            expect(await input.evaluate(element => document.activeElement === element)).toBe(true)
-            await page.keyboard.press(next)
-            const attachment = page.getByRole('button', { name: 'Add files or run commands', exact: true })
-            expect(await attachment.evaluate(element => document.activeElement === element)).toBe(true)
-            observations.push(`- ${platform}: clears the draft; focus remains on the composer card through response completion, then advances to the editor and attachment button`)
-          } else {
-            observations.push(`- ${platform}: clears the draft; editor stays focused through response completion`)
-          }
-          expect(tripwire.pageErrors).toEqual([])
-          if (webSnapshotMode() !== 'record') expect(tripwire.warnings).toEqual([])
-        } catch (error) {
-          await saveFailureShot(page, `web-e2e-composer-submission-${platform}`)
-          throw error
-        } finally {
-          off()
-          await page.close()
         }
       } finally {
-        await browser.close()
+        off()
       }
-    } finally {
-      await scaffold.close()
+    } catch (error) {
+      failures.push(error)
     }
+    for (const cleanup of [
+      () => page?.close(),
+      () => browser?.close(),
+      () => scaffold.close(),
+    ]) {
+      try {
+        await cleanup()
+      } catch (error) {
+        failures.push(error)
+      }
+    }
+    if (failures.length === 1) throw failures[0]
+    if (failures.length > 1) throw new AggregateError(failures, `${platform} composer submission or cleanup failed`)
   }
   await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'submission.expected.md'), observations.join('\n'), webSnapshotMode())
   await assertFixtureInventory(SNAPSHOT_DIR, ['focus.expected.md', 'submission.expected.md'])

@@ -1118,6 +1118,7 @@ describe('web e2e: shipped right Sidebar', () => {
 
     it('resists a floating panel dragged past the viewport edges and springs it back inside', async () => {
       onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-right-float-edge'))
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
       const column = await resetSidebar(page)
       const floats = page.locator('[data-sidebar-right-session]:not([hidden]) [data-dockkit-float]')
       await proseChip(page).click()
@@ -1133,6 +1134,10 @@ describe('web e2e: shipped right Sidebar', () => {
       await page.mouse.move(grip.x, grip.y)
       await page.mouse.down()
       await page.mouse.move(viewport.width - 2, viewport.height - 2, { steps: 8 })
+      await expect.poll(async () => {
+        const box = await panel.boundingBox()
+        return box !== null && box.x + box.width > viewport.width && box.y + box.height > viewport.height
+      }).toBe(true)
       const pushed = await panel.boundingBox()
       if (pushed === null) throw new Error('float is not rendered')
       expect(pushed.x + pushed.width).toBeGreaterThan(viewport.width)

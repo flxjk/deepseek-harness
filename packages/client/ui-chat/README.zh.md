@@ -108,6 +108,8 @@ Chat 末尾为进行中的 Turn 控制行，且该轮尚无可见输入时，第
 
 工作步骤展示模式控制过程组显示与推理预览。简洁、标准、详细模式收起符合条件的已完成轮次，保留所有 Assistant 回复可见，选「仅最终回答」时只保留最终答案；完全展开模式保留时长或状态抬头，但不支持收起，历史过程行直接显示。[业务规则明细](src/client/conversation-nodes/README.zh.md#display-modes) 统一说明模式表、组头行为、整轮折叠资格、时钟与开合重置。
 
+动画折叠会在静止过程行的高度收拢时同步淡出，使后续内容上移时不会留下短暂空白。启用减少动态效果偏好时，布局会立即完成变化。
+
 工作步骤展示下方的设置行提供[独立的收起时机设置](src/client/conversation-nodes/README.zh.md#collapse-timing)和[「收起后显示的回复」设置](src/client/conversation-nodes/README.zh.md#folded-replies)（`ui-chat.foldedReplies`，完全展开模式下隐藏），二者都通过相同的 Host profile 配置保存。
 
 -----

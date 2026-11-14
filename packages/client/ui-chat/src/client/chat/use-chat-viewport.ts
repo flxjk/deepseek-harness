@@ -278,6 +278,7 @@ export class ChatViewport {
     let written = 0
     const closing: InputFoldBox[] = []
     const travelling = new Set<HTMLElement>()
+    const closingAtOrBelowViewportTop: HTMLElement[] = []
     // A visible row outside the batch measures spacing that snaps when the batch starts and ends.
     let reference: HTMLElement | null = null
     let referenceTop = 0
@@ -336,6 +337,7 @@ export class ChatViewport {
           if (box.closing) {
             removed += amount
             above += Math.max(0, Math.min(amount, viewportTop - top))
+            if (top + amount > viewportTop) closingAtOrBelowViewportTop.push(box.element)
             if (top >= viewportTop) below.push(box.element)
             closing.push(box)
           } else {
@@ -374,6 +376,10 @@ export class ChatViewport {
         }
         // Scrolling forward past closing rows shows them shrinking; faded rows would leave their space empty.
         if (tail && target > start) for (const element of below) travelling.add(element)
+        if (!tail && reference === null) {
+          // With no surviving reader row, closing content from the viewport top down travels with the flow.
+          for (const element of closingAtOrBelowViewportTop) travelling.add(element)
+        }
         return travelling
       },
       prepare: (progress, cancelled) => {
