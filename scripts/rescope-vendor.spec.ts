@@ -87,6 +87,7 @@ describe('product identifiers', () => {
   it.each([
     'apps/cli/tests/optional-bundle-transitions.e2e.ts',
     'apps/web/tests/agent-preset-selection.e2e.ts',
+    'apps/web/tests/creator-persona.e2e.ts',
     'apps/web/tests/developer-tools-settings.e2e.ts',
     'docs/subsystems/extensions.md',
     'docs/subsystems/extensions.zh.md',
@@ -111,6 +112,7 @@ describe('product identifiers', () => {
     'packages/client/ui-entry-customization/tests/menu.client.spec.tsx',
     'packages/client/ui-workspace/tests/workspaces-service.client.spec.ts',
     'packages/extensions/cordis-host-runner/tests/inspect-registry.spec.ts',
+    'packages/experimental/cua/tests/agent-scopes.spec.ts',
     'scripts/gen-tool-catalog.ts',
     'snapshots/session/cordis-inspect-liveness/client-fixture.mjs',
     'snapshots/session/cordis-inspect-timeout/client-fixture.mjs',
@@ -177,6 +179,15 @@ describe('product identifiers', () => {
     const text = scoped.replaceAll("'@deepseek-ai/cordis'", "'cordis'")
     expect(text).not.toBe(scoped)
     expectRoundTrip(file, text, scoped, lines)
+    expect(rescopeText(text, file, true)).toEqual({ text, lines: 0 })
+  })
+
+  it('rescopes CUA framework imports without changing its preset ids', () => {
+    const file = 'packages/experimental/cua/tests/agent-scopes.spec.ts'
+    const scoped = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    const text = scoped.replaceAll("'@deepseek-ai/cordis'", "'cordis'")
+      .replaceAll("'@deepseek-ai/cordis-plugin-loader'", "'@cordisjs/plugin-loader'")
+    expectRoundTrip(file, text, scoped, 2)
     expect(rescopeText(text, file, true)).toEqual({ text, lines: 0 })
   })
 

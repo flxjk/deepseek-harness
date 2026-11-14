@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import type { Provider } from '@earendil-works/pi-ai'
 import { builtinProviders } from '@earendil-works/pi-ai/providers/all'
@@ -52,6 +52,10 @@ describe('provider metadata', () => {
       expect(check()).toContain('Provider metadata matches')
       git(['rm', '--cached', relative])
       expect(check).toThrow('Cannot read staged provider metadata; run pnpm gen-provider-data and stage provider-data.generated.ts')
+      expect(execFileSync(process.execPath, [
+        '--input-type=module', '--eval', `await import(${JSON.stringify(pathToFileURL(entry).href)})`,
+        'not-a-file-for-provider-metadata-import', '--check', '--cached',
+      ], { cwd: fixture, encoding: 'utf8', stdio: 'pipe', env: environment })).toBe('')
       expect(readFileSync(join(fixture, relative), 'utf8')).toBe(snapshot)
     } finally { rmSync(fixture, { recursive: true, force: true }) }
   })

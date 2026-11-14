@@ -1,7 +1,7 @@
 /** Generate display metadata through pi-ai's public catalog and auth context. */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import type { Provider } from '@earendil-works/pi-ai'
@@ -153,7 +153,8 @@ export async function syncProviderData(check: boolean, cached = false): Promise<
   writeFileSync(path, source)
 }
 
-if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+const invoked = process.argv[1]
+if (invoked !== undefined && existsSync(invoked) && realpathSync(invoked) === realpathSync(fileURLToPath(import.meta.url))) {
   await syncProviderData(process.argv.includes('--check'), process.argv.includes('--cached'))
   console.log('Provider metadata matches the installed pi-ai catalog.')
 }
