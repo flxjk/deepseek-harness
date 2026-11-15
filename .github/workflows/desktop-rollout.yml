@@ -76,7 +76,6 @@ jobs:
       DESKTOP_ROLLOUT_PERCENTAGE: ${{ inputs.rollout_percentage }}
       DESKTOP_PACKAGE_SELECTION: ${{ needs.route.outputs.selection }}
       DESKTOP_UPLOAD_WEBSITE: ${{ inputs.upload_website }}
-      DSH_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -123,7 +122,6 @@ jobs:
       DESKTOP_ROLLOUT_APPROVAL: ${{ needs.prepare.outputs.approval }}
       DESKTOP_UPLOAD_WEBSITE: ${{ inputs.upload_website }}
       DESKTOP_PUBLISH_ROUTE: ${{ needs.prepare.outputs.route }}
-      DSH_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v7.0.1
         with:

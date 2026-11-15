@@ -36,7 +36,7 @@ describe.skipIf(!existsSync(bin))('cua-mcp profile', { retry: 0 }, () => {
       try { await owned.probe?.terminate() } finally { await rm(temporary, { recursive: true, force: true }) }
     })
     const env: NodeJS.ProcessEnv = {
-      ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', DSH_PERMISSION_MODE: 'danger-full-access', DSH_CUA_CONSENT: 'allow',
+      ...process.env, DSH_HOME: home, DSH_PERMISSION_MODE: 'danger-full-access', DSH_CUA_CONSENT: 'allow',
     }
     clearAmbientProxyEnv(env)
     // The default workspace is under test, whatever the developer's shell exports.
