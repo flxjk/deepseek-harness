@@ -24,6 +24,7 @@ import DeepSeekLlmApiExtensionRegistry from '@deepseek-ai/dsh-deepseek-llm-api-e
 import type { PreparedDeepSeekLlmApiExtensions } from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
 import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import { DeepSeekAdapter, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
+import DeepSeekAuth from '@deepseek-ai/dsh-deepseek-auth'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import { providerError } from '../src/transport.ts'
 import { resolveRequestImageTarget } from '../src/request-pricing.ts'
@@ -59,6 +60,7 @@ async function harness(baseURL: string, config: object = {}) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(DeepSeekLlmApiExtensionRegistry)
+  await ctx.plugin(DeepSeekAuth)
   await ctx.plugin(LlmDeepSeek, { baseURL, ...config })
   return ctx
 }
@@ -134,6 +136,22 @@ function fileStoreOf(
     ensureUploaded,
     invalidate,
   }
+}
+
+/** Opaque file ids reflect provider arrival order. Unrejected positions keep their original ids. */
+function expectFileReplacements(requests: readonly unknown[], count: number, rejected: readonly string[]): void {
+  expect(requests).toHaveLength(2)
+  const attempts = requests as Array<{ messages: Array<{ content: Array<{ type: string; source: { file_id: string } }> }> }>
+  const [first, second] = attempts.map(attempt => attempt.messages[0]!.content.filter(block => block.type === 'image').map(block => block.source.file_id))
+  const ids = (start: number, size: number) => Array.from({ length: size }, (_, index) => `file-api-${start + index}`)
+  expect(first!.toSorted()).toEqual(ids(1, count).toSorted())
+  expect(second).toHaveLength(count)
+  const replacements = []
+  for (const [position, id] of first!.entries()) {
+    if (rejected.includes(id)) replacements.push(second![position])
+    else expect(second![position]).toBe(id)
+  }
+  expect(replacements.toSorted()).toEqual(ids(count + 1, rejected.length).toSorted())
 }
 
 function fileReference(fileId: string): Awaited<ReturnType<Protocol.DeepSeekFileStore['ensureUploaded']>> {
@@ -469,7 +487,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     const body = server.requests[0] as { messages: Array<{ content: unknown }> }
     expect(JSON.stringify(body.messages[0]?.content).match(/"type":"image"/g)).toHaveLength(2)
     expect(JSON.stringify(body)).not.toContain('file_id')
-    expect(files.ensureUploaded).toHaveBeenCalledTimes(1)
+    expect(files.ensureUploaded).toHaveBeenCalledTimes(2)
   })
 
   it('fails a base64 fallback whose retained images exceed the inline bound with the count to offload', async () => {
@@ -526,43 +544,69 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(JSON.stringify(body)).not.toContain('file-api-partial')
   })
 
-  it('sends successive image requests inline after one 20-second upload timeout', async () => {
+  it('counts each ten-image request once after upload timeouts and retries only after HTTP 429', async () => {
     vi.useFakeTimers()
-    const started = Promise.withResolvers<undefined>()
-    const upload = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+    const started = Array.from({ length: 2 }, () => Promise.withResolvers<undefined>())
+    const throttled = Array.from({ length: 2 }, () => Promise.withResolvers<undefined>())
+    const upload = vi.fn<typeof fetch>(async () => Response.json({
       id: 'file-probe', type: 'file', size_bytes: 3, created_at: new Date().toISOString(), filename: 'probe.png', mime_type: 'image/png',
-    }))).mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
-      started.resolve(undefined)
-      init!.signal!.addEventListener('abort', () => { reject(new Error('upload aborted')) }, { once: true })
     }))
-    const files = new Protocol.DeepSeekFileStore({ fetch: upload })
-    const attachments = attachmentStoreOf(ref => Promise.resolve(requestImage(ref))).store
+    for (const [round, gate] of started.entries()) {
+      upload.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+        gate.resolve(undefined)
+        init!.signal!.addEventListener('abort', () => { reject(new Error('upload aborted')) }, { once: true })
+      })).mockImplementationOnce(async () => {
+        throttled[round]!.resolve(undefined)
+        return new Response(null, { status: 429 })
+      })
+    }
+    const index = new Protocol.DeepSeekUploadIndex()
+    vi.spyOn(index, 'get').mockResolvedValue(undefined)
+    const files = new Protocol.DeepSeekFileStore({ fetch: upload, index })
+    const attachments = attachmentStoreOf(ref => Promise.resolve({
+      ...requestImage(ref), variantId: brandString<ImageVariantId>(ref.attachmentId),
+    })).store
     const messages = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => successfulSseResponse())
     const adapter = adapterOf({ baseURL: 'https://deepseek.invalid' }, attachments, files)
-    const second = { ...imageRef, attachmentId: brandString<AttachmentId>(`sha256:${'c'.repeat(64)}`) }
+    const ten = Array.from({ length: 10 }, (_, i) => ({
+      ...imageRef, attachmentId: brandString<AttachmentId>(`sha256:${i.toString(16).repeat(64)}`),
+    }))
     const request = (images = [imageRef]) => drain(adapter.stream({
       provider: 'deepseek-official', model: 'deepseek-flash',
       messages: [createUserMessage({ content: images.map(attachment => ({ type: 'image', attachment })), source: { kind: 'user' } })],
     }))
 
     try {
-      const first = request()
-      await started.promise
-      await vi.advanceTimersByTimeAsync(19_999)
-      expect(messages).not.toHaveBeenCalled()
-      await vi.advanceTimersByTimeAsync(1)
-      await first
-      await vi.advanceTimersByTimeAsync(3_600_000)
-      await drain(adapter.stream({ provider: 'deepseek-official', model: 'deepseek-flash', messages: [] }))
-      await request([imageRef, second])
-      expect(upload).toHaveBeenCalledTimes(1)
-      expect(messages).toHaveBeenCalledTimes(3)
-      expect(messages.mock.calls[0]?.[1]?.body).toEqual(expect.stringContaining('base64'))
-      const inline = messages.mock.calls[2]?.[1]?.body
-      expect(typeof inline === 'string' && inline.match(/"type":"base64"/gu)).toHaveLength(2)
-      await request()
-      expect(upload).toHaveBeenCalledTimes(2)
-      expect(messages.mock.calls[3]?.[1]?.body).toEqual(expect.stringContaining('file-probe'))
+      for (const [round, gate] of started.entries()) {
+        const timedOut = request()
+        const priorMessages = messages.mock.calls.length
+        if (round > 0) {
+          await throttled[round - 1]!.promise
+          await vi.advanceTimersByTimeAsync(500)
+        }
+        await gate.promise
+        await vi.advanceTimersByTimeAsync(round === 0 ? 19_999 : 19_499)
+        expect(messages).toHaveBeenCalledTimes(priorMessages)
+        await vi.advanceTimersByTimeAsync(1)
+        await timedOut
+        const expectedPosts = round === 0 ? 1 : 3
+        expect(upload).toHaveBeenCalledTimes(expectedPosts)
+        expect(messages.mock.lastCall?.[1]?.body).toEqual(expect.stringContaining('base64'))
+        await vi.advanceTimersByTimeAsync(3_600_000)
+        await drain(adapter.stream({ provider: 'deepseek-official', model: 'deepseek-flash', messages: [] }))
+        for (let skip = 0; skip < 2 ** round; skip++) {
+          await request(ten)
+          const inline = messages.mock.lastCall?.[1]?.body
+          expect(typeof inline === 'string' && inline.match(/"type":"base64"/gu)).toHaveLength(10)
+          expect(upload).toHaveBeenCalledTimes(expectedPosts)
+        }
+      }
+      const recovered = request()
+      await throttled[1]!.promise
+      await vi.advanceTimersByTimeAsync(500)
+      await recovered
+      expect(upload).toHaveBeenCalledTimes(5)
+      expect(messages.mock.lastCall?.[1]?.body).toEqual(expect.stringContaining('file-probe'))
     } finally {
       messages.mockRestore()
     }
@@ -949,11 +993,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     }))
 
     expect(server.fileRequests.filter(request => request.method === 'POST')).toHaveLength(3)
-    const retries = server.requests as Array<{ messages: Array<{ content: Array<{ type: string; file_id?: string }> }> }>
-    expect(retries[0]?.messages[0]?.content.filter(block => block.type === 'image'))
-      .toEqual([{ type: 'image', source: { type: 'file', file_id: 'file-api-1' } }, { type: 'image', source: { type: 'file', file_id: 'file-api-2' } }])
-    expect(retries[1]?.messages[0]?.content.filter(block => block.type === 'image'))
-      .toEqual([{ type: 'image', source: { type: 'file', file_id: 'file-api-1' } }, { type: 'image', source: { type: 'file', file_id: 'file-api-3' } }])
+    expectFileReplacements(server.requests, 2, ['file-api-2'])
   })
 
   it('invalidates every listed missing file id and preserves unlisted mappings', async () => {
@@ -1006,19 +1046,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     }))
 
     expect(server.fileRequests.filter(request => request.method === 'POST')).toHaveLength(5)
-    const retries = server.requests as Array<{ messages: Array<{ content: Array<{ type: string; file_id?: string }> }> }>
-    expect(retries[0]?.messages[0]?.content.filter(block => block.type === 'image'))
-      .toEqual([
-        { type: 'image', source: { type: 'file', file_id: 'file-api-1' } },
-        { type: 'image', source: { type: 'file', file_id: 'file-api-2' } },
-        { type: 'image', source: { type: 'file', file_id: 'file-api-3' } },
-      ])
-    expect(retries[1]?.messages[0]?.content.filter(block => block.type === 'image'))
-      .toEqual([
-        { type: 'image', source: { type: 'file', file_id: 'file-api-4' } },
-        { type: 'image', source: { type: 'file', file_id: 'file-api-2' } },
-        { type: 'image', source: { type: 'file', file_id: 'file-api-5' } },
-      ])
+    expectFileReplacements(server.requests, 3, ['file-api-1', 'file-api-3'])
   })
 
   it('recovers in one replacement request when the provider lists dozens of missing file ids', async () => {
@@ -1061,15 +1089,7 @@ describe('DeepSeekAdapter against a mock server', () => {
 
     expect(server.requests).toHaveLength(2)
     expect(server.fileRequests.filter(request => request.method === 'POST')).toHaveLength(70)
-    const attempts = server.requests as Array<{ messages: Array<{ content: Array<{ type: string; source?: { file_id?: string } }> }> }>
-    const fileIds = (attempt: number) => attempts[attempt]?.messages[0]?.content
-      .filter(block => block.type === 'image')
-      .map(block => block.source?.file_id)
-    expect(fileIds(0)).toEqual(refs.map((_, index) => `file-api-${index + 1}`))
-    expect(fileIds(1)).toEqual([
-      ...missing.map((_, index) => `file-api-${41 + index}`),
-      ...refs.slice(30).map((_, index) => `file-api-${31 + index}`),
-    ])
+    expectFileReplacements(server.requests, 40, missing)
   })
 
   it('invalidates every used mapping when a stale-file response does not identify one file id', async () => {
@@ -1107,9 +1127,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     }))
 
     expect(server.fileRequests.filter(request => request.method === 'POST')).toHaveLength(4)
-    const retries = server.requests as Array<{ messages: Array<{ content: Array<{ type: string; file_id?: string }> }> }>
-    expect(retries[1]?.messages[0]?.content.filter(block => block.type === 'image'))
-      .toEqual([{ type: 'image', source: { type: 'file', file_id: 'file-api-3' } }, { type: 'image', source: { type: 'file', file_id: 'file-api-4' } }])
+    expectFileReplacements(server.requests, 2, ['file-api-1', 'file-api-2'])
   })
 
   it('returns the second stale-file rejection without a third model attempt', async () => {
@@ -1748,6 +1766,7 @@ describe('plugin registration and config', () => {
     const server = await mockServer([])
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     const fiber = await ctx.plugin(LlmDeepSeek, {
       baseURL: server.url,
     })
@@ -1766,6 +1785,7 @@ describe('plugin registration and config', () => {
   it('registers retryPolicy from the provider config', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       retryPolicy: {
@@ -1786,6 +1806,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'catalog-fixture-key')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: 'http://127.0.0.1:1' })
     expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
@@ -1822,6 +1843,7 @@ describe('plugin registration and config', () => {
   it('keeps deepseek-v4-pro available with its V4 capabilities', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: 'http://127.0.0.1:1' })
     const info = await ctx.llm.resolveModelInfo('deepseek-official', 'deepseek-v4-pro')
     expect(info).toMatchObject({
@@ -1836,6 +1858,7 @@ describe('plugin registration and config', () => {
   it.each(['off', 'low', 'max'] as const)('uses the configured %s reasoning default', async (effort) => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       reasoningEffort: effort,
@@ -1857,6 +1880,7 @@ describe('plugin registration and config', () => {
   it('accepts off as the default when thinking is deployment-disabled', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       thinking: 'disabled',
@@ -1880,6 +1904,7 @@ describe('plugin registration and config', () => {
     async (reasoningEffort) => {
       const ctx = new Context()
       await ctx.plugin(LlmRuntime)
+      await ctx.plugin(DeepSeekAuth)
       await expect(ctx.plugin(LlmDeepSeek, {
         baseURL: 'http://127.0.0.1:1',
         thinking: 'disabled',
@@ -1915,6 +1940,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'catalog-fixture-key')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     LlmDeepSeek.apply(ctx, LlmDeepSeek.Config({ baseURL: 'http://127.0.0.1:1' }))
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
       { provider: 'deepseek-official', id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash', inputModalities: ['text', 'image'] },
@@ -1933,6 +1959,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'catalog-fixture-key')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       models: [
@@ -1968,6 +1995,7 @@ describe('plugin registration and config', () => {
   it('uses exact model capacity before the adapter-wide default', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       defaultContextWindow: 256_000,
@@ -1988,6 +2016,7 @@ describe('plugin registration and config', () => {
   it('allows an explicit empty model catalog', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       models: [],
@@ -2012,6 +2041,7 @@ describe('plugin registration and config', () => {
   it.each(invalidModels)('rejects invalid advisory model config', async (models, message) => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await expect(Reflect.apply(ctx.plugin.bind(ctx), undefined, [LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1', models: [...models],
     }])).rejects.toThrow(message)
@@ -2036,6 +2066,7 @@ describe('plugin registration and config', () => {
 
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await expect(ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       models: [legacyModel],
@@ -2117,6 +2148,7 @@ describe('plugin registration and config', () => {
 
       const ctx = new Context()
       await ctx.plugin(LlmRuntime)
+      await ctx.plugin(DeepSeekAuth)
       await expect(ctx.plugin(LlmDeepSeek, {
         baseURL: 'http://127.0.0.1:1',
         defaultContextWindow,
@@ -2133,6 +2165,7 @@ describe('plugin registration and config', () => {
 
       const ctx = new Context()
       await ctx.plugin(LlmRuntime)
+      await ctx.plugin(DeepSeekAuth)
       await expect(ctx.plugin(LlmDeepSeek, {
         baseURL: 'http://127.0.0.1:1',
         maxTokens,
@@ -2169,6 +2202,15 @@ describe('plugin registration and config', () => {
     ['fileExpiresAfterSeconds', 2_592_001, /fileExpiresAfterSeconds must be an integer from 3600 through 2592000/],
     ['fileRefreshMarginSeconds', -1, /fileRefreshMarginSeconds must be a non-negative integer/],
     ['fileRefreshMarginSeconds', 604_800, /fileRefreshMarginSeconds must be a non-negative integer/],
+    ['fileUploadConcurrency', 0, /fileUploadConcurrency/],
+    ['fileUploadConcurrency', 4, /fileUploadConcurrency/],
+    ['fileUploadConcurrency', 1.5, /fileUploadConcurrency/],
+    ['fileUploadMaxRetries', -1, /fileUploadMaxRetries/],
+    ['fileUploadMaxRetries', 3, /fileUploadMaxRetries/],
+    ['fileUploadMaxRetries', 1.5, /fileUploadMaxRetries/],
+    ['fileUploadRetryDelayMs', 0, /fileUploadRetryDelayMs/],
+    ['fileUploadRetryDelayMs', MAX_TIMER_DELAY_MS + 1, /fileUploadRetryDelayMs/],
+    ['fileUploadRetryDelayMs', 1.5, /fileUploadRetryDelayMs/],
     ['fileQuotaCleanupBatch', 0, /fileQuotaCleanupBatch must be an integer from 1 through 1000/],
     ['fileQuotaCleanupBatch', 1_001, /fileQuotaCleanupBatch must be an integer from 1 through 1000/],
   ] as const)('rejects %s=%s', (field, value, message) => {
@@ -2183,6 +2225,7 @@ describe('plugin registration and config', () => {
 
       const ctx = new Context()
       await ctx.plugin(LlmRuntime)
+      await ctx.plugin(DeepSeekAuth)
       await expect(ctx.plugin(LlmDeepSeek, {
         baseURL: 'http://127.0.0.1:1',
         maxRequestFilesBytes,
@@ -2199,6 +2242,7 @@ describe('plugin registration and config', () => {
 
       const ctx = new Context()
       await ctx.plugin(LlmRuntime)
+      await ctx.plugin(DeepSeekAuth)
       await expect(ctx.plugin(LlmDeepSeek, {
         baseURL: 'http://127.0.0.1:1',
         maxInlineRequestImageBytes,
@@ -2212,6 +2256,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_BASE_URL', 'http://127.0.0.1:1')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {})
     expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
   })
@@ -2220,6 +2265,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_API_KEY', '')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: 'http://127.0.0.1:1' })
     expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([])
@@ -2242,6 +2288,7 @@ describe('plugin registration and config', () => {
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: server.url })
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
     expect(server.headers[0]?.['x-api-key']).toBe('ambient-key')
@@ -2251,6 +2298,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_API_KEY', '')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: 'http://127.0.0.1:1' })
     const result = await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
     expect(result.finish).toMatchObject({ kind: 'error', failure: { code: 'MISSING_CREDENTIAL' } })
@@ -2271,6 +2319,7 @@ describe('plugin registration and config', () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {})
     await assemble(ctx,{ model: 'deepseek-v4-flash', messages: [] })
     expect(server.requests).toHaveLength(1)
@@ -2301,6 +2350,7 @@ describe('plugin registration and config', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     // Registration succeeds; no call is made (would hit api.deepseek.com).
+    await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {})
     expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
   })
@@ -2333,6 +2383,7 @@ describe('plugin registration and config', () => {
 
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await expect(ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       streamIdleTimeoutMs: 0,
@@ -2351,6 +2402,7 @@ describe('plugin registration and config', () => {
 
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
+    await ctx.plugin(DeepSeekAuth)
     await expect(ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       filesApiTimeoutMs: 0,
@@ -2367,6 +2419,7 @@ describe('plugin registration and config', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
 
+    await ctx.plugin(DeepSeekAuth)
     await expect(ctx.plugin(LlmDeepSeek, {
       baseURL: 'http://127.0.0.1:1',
       retryPolicy: { mode: 'normal', maxRetries: -1 },

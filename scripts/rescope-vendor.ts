@@ -115,6 +115,8 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'docs/tool-catalog.zh.md', upstream: ['cordis'] },
   { file: 'docs/upgrade-guide/v0.2.2-alpha.2/fs-observation-policy-default-off/guide.md', upstream: ['cordis'] },
   { file: 'docs/upgrade-guide/v0.2.2-alpha.2/fs-observation-policy-default-off/guide.zh.md', upstream: ['cordis'] },
+  { file: 'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.md', upstream: ['cordis'] },
+  { file: 'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.zh.md', upstream: ['cordis'] },
   { file: 'scripts/gen-tool-catalog.ts', upstream: ['cordis'] },
   { file: 'docs/upgrade-guide/v0.2.0-rc.2/schedule-bundle-retired/guide.md', upstream: ['cordis'] },
   { file: 'docs/upgrade-guide/v0.2.0-rc.2/schedule-bundle-retired/guide.zh.md', upstream: ['cordis'] },
@@ -167,7 +169,6 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'packages/experimental/inspector/tests/plugin.client.spec.ts', upstream: ['cordis'] },
   { file: 'scripts/gen-cordis-catalog.ts', upstream: ['cordis'] },
   // The UI locale namespace and input-trigger source id are product keys.
-  { file: 'packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/CordisActionRow.tsx', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/CordisDefineRow.tsx', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/CordisPanel.tsx', upstream: ['cordis'] },

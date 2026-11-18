@@ -441,7 +441,7 @@ function prepareProfile(
   const profile: ProfileContext = {
     name: loaded.name, dir: loaded.dir, patchPath: loaded.patchPath, installAnchor, cwd: root, home,
     startedBundles: loaded.layers.map(layer => layer.packageName),
-    overlays: [],
+    overlayPaths: [],
   }
   return { patches: appBoot.readProfilePatches(BIN_NAME, profile, loaded), profile, environment }
 }

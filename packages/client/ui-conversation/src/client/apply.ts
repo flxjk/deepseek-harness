@@ -1,7 +1,8 @@
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 /** Registers the target-neutral Conversation assembly, shell, input, and docks. */
 import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
+import type { SyncedConfig } from '@deepseek-ai/dsh-client-config/types'
+import type { ConversationConfig } from '../types.ts'
 import type { ISessions, SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
 import { IconPaperclipOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { createSnapshotStore, type BoundActions } from '@deepseek-ai/dsh-client-store'
@@ -66,16 +67,6 @@ export const inject = [
   'slots', 'sessions', 'fileUpload', 'uiSession', 'uiSession.sessionStatus', 'uiWorkspace', 'locale', 'configForms',
 ]
 
-/** Conversation runtime configuration. */
-export interface Config {
-  /** Maximum generic-file uploads allowed to run concurrently in browser Workers. */
-  maxConcurrentFileUploads?: number
-}
-
-/** Validated Conversation runtime configuration. */
-export const Config: z<Config> = z.object({
-  maxConcurrentFileUploads: z.natural().min(1).default(2),
-})
 
 // Stable no-session sources keep the renderer's observable-hook cache and
 // hook order unchanged across current-Session transitions.
@@ -157,12 +148,12 @@ function concreteConversation(ctx: Context): ConversationController {
 /**
  * Mount the Conversation core and target-neutral presentation.
  * @param ctx - Client root context.
+ * @param config - Host-synced live configuration.
  */
-export function apply(ctx: Context, config: Config = Config({})): void {
+export function apply(ctx: Context, config: SyncedConfig<ConversationConfig>): void {
   const sessions = ctx.sessions
   const slots = ctx.slots
-  // Schemastery's field default is materialized before Cordis calls apply.
-  const maxConcurrentFileUploads = config.maxConcurrentFileUploads as number
+  const fileUploadLimit = config.maxConcurrentFileUploads
   const workspaceNavigation = ctx.get('uiWorkspace') as WorkspaceNavigation
   const uiConversation = new UiConversation(ctx, sessions)
   uiConversation.userText.register(sessionReferenceRule)
@@ -601,7 +592,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
   ctx.plugin(ConversationController, {
     input: inputHub,
     blocks: composerBlocks,
-    maxConcurrentFileUploads,
+    maxConcurrentFileUploads: fileUploadLimit,
   })
   ctx.plugin(todoDockEntry)
   ctx.plugin(queueDockEntry)

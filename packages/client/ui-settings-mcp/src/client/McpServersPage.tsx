@@ -345,6 +345,7 @@ function statusBadge(t: T, status: McpManagedServerStatus): { label: string; ton
     case 'connecting': return { label: t('statusConnecting'), tone: 'warning' }
     case 'reconnecting': return { label: t('statusReconnecting'), tone: 'warning' }
     case 'waiting-credentials': return { label: t('statusWaitingCredentials'), tone: 'warning' }
+    case 'waiting-authorization': return { label: t('statusWaitingAuthorization'), tone: 'warning' }
     case 'closed': return { label: t('statusClosed'), tone: 'neutral' }
     case 'disabled': return { label: t('statusDisabled'), tone: 'neutral' }
     case 'failed': return { label: t('statusFailed'), tone: 'danger' }
@@ -364,6 +365,7 @@ function statusDetail(t: T, status: McpManagedServerStatus): string {
     case 'reconnecting':
       return detailLines(t('reconnectProgress', { attempt: status.attempt, max: status.maxAttempts }), status.lastError)
     case 'waiting-credentials': return status.lastError
+    case 'waiting-authorization': return status.lastError
     case 'closed': return status.result.closeConfirmed ? '' : t('closeUnconfirmed')
     case 'disabled': return ''
     case 'failed':

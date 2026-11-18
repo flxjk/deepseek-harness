@@ -11,6 +11,7 @@ export type McpSettingsLocaleKey =
   | 'readFailed' | 'retry' | 'runtimeOnlyTag' | 'runtimeOnly' | 'toolNamespace'
   | 'enableServer' | 'disableServer' | 'edit' | 'delete' | 'restart' | 'restarting' | 'probe' | 'probing'
   | 'statusConnected' | 'statusConnecting' | 'statusReconnecting' | 'statusWaitingCredentials'
+  | 'statusWaitingAuthorization'
   | 'statusClosed' | 'statusDisabled' | 'statusFailed'
   | 'toolCount' | 'attemptCount' | 'reconnectProgress'
   | 'reasonGaveUp' | 'reasonReconnectDisabled' | 'reasonUnclosedGeneration' | 'reasonLoad'
@@ -50,6 +51,7 @@ export const en: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: 'Connecting',
   statusReconnecting: 'Reconnecting',
   statusWaitingCredentials: 'Waiting for credentials',
+  statusWaitingAuthorization: 'Waiting for authorization',
   statusClosed: 'Closed',
   statusDisabled: 'Disabled',
   statusFailed: 'Failed',
@@ -131,6 +133,7 @@ export const zh: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: '正在连接',
   statusReconnecting: '正在重连',
   statusWaitingCredentials: '等待凭据',
+  statusWaitingAuthorization: '等待授权',
   statusClosed: '已关闭',
   statusDisabled: '已停用',
   statusFailed: '失败',
@@ -212,6 +215,7 @@ export const ja: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: '接続中',
   statusReconnecting: '再接続中',
   statusWaitingCredentials: '認証情報を待機中',
+  statusWaitingAuthorization: '認証を待機中',
   statusClosed: '切断済み',
   statusDisabled: '無効',
   statusFailed: '失敗',
@@ -293,6 +297,7 @@ export const es: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: 'Conectando',
   statusReconnecting: 'Reconectando',
   statusWaitingCredentials: 'Esperando credenciales',
+  statusWaitingAuthorization: 'Esperando autorización',
   statusClosed: 'Cerrado',
   statusDisabled: 'Desactivado',
   statusFailed: 'Falló',
@@ -374,6 +379,7 @@ export const fr: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: 'Connexion',
   statusReconnecting: 'Reconnexion',
   statusWaitingCredentials: 'En attente des identifiants',
+  statusWaitingAuthorization: 'En attente d’autorisation',
   statusClosed: 'Fermé',
   statusDisabled: 'Désactivé',
   statusFailed: 'Échec',
@@ -455,6 +461,7 @@ export const de: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: 'Verbindet',
   statusReconnecting: 'Verbindet neu',
   statusWaitingCredentials: 'Wartet auf Anmeldedaten',
+  statusWaitingAuthorization: 'Wartet auf Autorisierung',
   statusClosed: 'Geschlossen',
   statusDisabled: 'Deaktiviert',
   statusFailed: 'Fehlgeschlagen',
@@ -536,6 +543,7 @@ export const ru: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: 'Подключение',
   statusReconnecting: 'Переподключение',
   statusWaitingCredentials: 'Ожидание учётных данных',
+  statusWaitingAuthorization: 'Ожидание авторизации',
   statusClosed: 'Закрыто',
   statusDisabled: 'Отключено',
   statusFailed: 'Сбой',
@@ -617,6 +625,7 @@ export const pt: Record<McpSettingsLocaleKey, string> = {
   statusConnecting: 'A ligar',
   statusReconnecting: 'A religar',
   statusWaitingCredentials: 'À espera de credenciais',
+  statusWaitingAuthorization: 'À espera de autorização',
   statusClosed: 'Fechado',
   statusDisabled: 'Desativado',
   statusFailed: 'Falhou',

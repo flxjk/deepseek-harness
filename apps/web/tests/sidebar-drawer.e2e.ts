@@ -184,8 +184,12 @@ async function assertMaskFade(frame: Locator, from: number, to: number): Promise
   })
 }
 
-/** Sample both width transitions on the same clock to detect detached sidebar controls. */
-async function assertFoldResize(toggle: Locator, frame: Locator, from: number, to: number): Promise<void> {
+/**
+ * Sample both width transitions on the same clock to detect detached sidebar controls.
+ * Returns only after this sample's transitions can no longer dispatch an end event, so
+ * the caller's next posture change starts from a window that no pending event settles.
+ */
+async function assertFoldResize(toggle: Locator, from: number, to: number): Promise<void> {
   await expect.poll(() => toggle.evaluate((button, target) => {
     const frame = button.closest<HTMLElement>('[data-animating]')
     return frame !== null && parseFloat(frame.style.gridTemplateColumns) === target && frame.getAnimations().some(animation =>
@@ -208,21 +212,29 @@ async function assertFoldResize(toggle: Locator, frame: Locator, from: number, t
     const start = at(0)
     const middle = at(0.5)
     const end = at(1)
-    for (const transition of transitions) transition.finish()
+    // Cancel instead of finish: a finished transition queues its transitionend for a
+    // later rendering update, and an end event arriving after the caller's next posture
+    // change settles the new window, drops data-animating and cancels the transition the
+    // next assertFoldResize looks for. A cancelled transition dispatches transitioncancel,
+    // which AppFrame does not observe, so this sample leaves no end event pending. Both
+    // values stay at the end state: cancelling drops the transition effect, and the
+    // computed grid lands on the same target the finished transition would show.
+    for (const transition of transitions) transition.cancel()
     frame.style.removeProperty('--ds-transition-duration-slow')
     return { endpoints: [start.width, end.width], start, middle }
   })
   // AppFrame clears data-animating in transitionend; finish() can return before that event is processed.
-  await expect.poll(() => frame.evaluate((node, target) => !node.hasAttribute('data-animating')
-    && parseFloat(getComputedStyle(node).gridTemplateColumns) === target
-    && !node.getAnimations({ subtree: true }).some(animation => animation instanceof CSSTransition
-      && ['grid-template-columns', 'width'].includes(animation.transitionProperty)
-      && animation.playState !== 'finished'), to),
-  { timeout: 5_000, message: 'AppFrame did not settle its grid transition before the next toggle' }).toBe(true)
   expect(sample.endpoints).toEqual([from, to])
   expect(sample.middle.width).toBeGreaterThan(Math.min(from, to))
   expect(sample.middle.width).toBeLessThan(Math.max(from, to))
   expect(sample.middle.gap).toBeCloseTo(sample.start.gap, 1)
+  // AppFrame removes data-animating either from a transitionend or from its own 600 ms
+  // fallback, which is the only remaining settle path once the transitions are cancelled.
+  // Wait for that settle so the caller's next posture change starts from a clear window.
+  await expect.poll(
+    () => toggle.evaluate(button => button.closest('[data-animating]') === null),
+    { timeout: 5_000 },
+  ).toBe(true)
 }
 
 it('overlays the conversation and closes after navigation without losing its sidebar content', async () => {
@@ -500,7 +512,7 @@ it('overlays the conversation and closes after navigation without losing its sid
         await expect.poll(() => page.evaluate(() =>
           matchMedia('(device-posture: folded) and (orientation: landscape)').matches)).toBe(false)
         await page.emulateMedia({ reducedMotion: 'no-preference' })
-        await assertFoldResize(collapseSidebar, wideFrame, 475.5, 280)
+        await assertFoldResize(collapseSidebar, 475.5, 280)
         await expect.poll(() => main.boundingBox()).toEqual({ x: 280, y: 0, width: 671, height: 669 })
         expect(await page.locator('[data-side="sidebar"]').count()).toBe(1)
         expect(await foldSearch.evaluate(el => el === document.activeElement)).toBe(true)
@@ -510,7 +522,7 @@ it('overlays the conversation and closes after navigation without losing its sid
         await expect.poll(() => page.evaluate(() =>
           matchMedia('(device-posture: folded) and (orientation: landscape)').matches)).toBe(true)
         await page.emulateMedia({ reducedMotion: 'no-preference' })
-        await assertFoldResize(collapseSidebar, wideFrame, 280, 475.5)
+        await assertFoldResize(collapseSidebar, 280, 475.5)
         await expect.poll(async () => (await main.boundingBox())?.x).toBe(475.5)
         expect(await foldSearch.evaluate(el => el === document.activeElement)).toBe(true)
         await page.emulateMedia({ reducedMotion: 'reduce' })

@@ -29,7 +29,6 @@ import {
   resolveProfileDir,
   writeProfileManifest,
   type Profile,
-  type ProfileContext,
   type RuntimeResolution,
 } from '../src/index.ts'
 import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
@@ -199,7 +198,7 @@ describe('resolveProfileDir', () => {
   })
 })
 
-it('composes current files from profile data and retains launch overlay precedence', () => {
+it('composes current profile, home, and overlay files with overlay precedence', () => {
   const home = tmp()
   const installAnchor = stageInstallation({ base: { patch: '- insert:\n  - id: example\n    name: example\n' } })
   const dir = resolveProfileDir('test', home)
@@ -207,21 +206,24 @@ it('composes current files from profile data and retains launch overlay preceden
   const patchPath = join(dir, 'application.patch.yml')
   writeFileSync(patchPath, '- id: example\n  disabled: true\n')
   writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: example\n  disabled: false\n')
-  const context: ProfileContext = {
+  const overlayPath = join(home, 'overlay.yml')
+  writeFileSync(overlayPath, '- id: example\n  disabled: false\n')
+  const context = {
     name: 'test', dir, patchPath, installAnchor, home, cwd: home,
     startedBundles: ['base'],
-    overlays: [{ id: 'example', disabled: true }],
+    overlayPaths: [overlayPath],
   }
+  expect(composeEntries([readProfilePatches('test', context)])[0]?.disabled).toBe(false)
+  writeFileSync(overlayPath, '- id: example\n  disabled: true\n')
   expect(composeEntries([readProfilePatches('test', context)])[0]?.disabled).toBe(true)
-  const patches = readProfilePatches('test', context)
-  patches.at(-1)!.disabled = false
-  expect(context.overlays[0]?.disabled).toBe(true)
+  rmSync(overlayPath)
+  expect(() => readProfilePatches('test', context)).toThrow(`failed to read overlay ${overlayPath}`)
   writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: example\n  disabled: true\n')
-  expect(composeEntries([readProfilePatches('test', { ...context, overlays: [] })])[0]?.disabled).toBe(true)
+  expect(composeEntries([readProfilePatches('test', { ...context, overlayPaths: [] })])[0]?.disabled).toBe(true)
   writeFileSync(join(home, PROFILE_PATCH_FILENAME), '[]\n')
-  expect(composeEntries([readProfilePatches('test', { ...context, overlays: [] })])[0]?.disabled).toBe(true)
+  expect(composeEntries([readProfilePatches('test', { ...context, overlayPaths: [] })])[0]?.disabled).toBe(true)
   writeFileSync(patchPath, '- id: example\n  disabled: false\n')
-  expect(composeEntries([readProfilePatches('test', { ...context, overlays: [] })])[0]?.disabled).toBe(false)
+  expect(composeEntries([readProfilePatches('test', { ...context, overlayPaths: [] })])[0]?.disabled).toBe(false)
 })
 
 describe('initProfile', () => {
