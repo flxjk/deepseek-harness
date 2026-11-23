@@ -10,7 +10,7 @@ import type { LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environm
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './types.ts'
 import { DEFAULT_MODELS } from './models.ts'
-import { MAX_FILE_UPLOAD_CONCURRENCY, MAX_FILE_UPLOAD_RETRIES, DEFAULT_FILE_UPLOAD_RETRY_DELAY_MS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES, DEFAULT_IMAGE_OFFLOAD_BYTE_QUANTUM, DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM, DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM, DEFAULT_FILE_EXPIRY_SECONDS, DEFAULT_FILE_REFRESH_MARGIN_SECONDS, DEFAULT_FILE_QUOTA_CLEANUP_BATCH, DEFAULT_FILES_API_TIMEOUT_MS } from './defaults.ts'
+import { MAX_FILE_UPLOAD_CONCURRENCY, MAX_FILE_UPLOAD_RETRIES, DEFAULT_FILE_UPLOAD_RETRY_DELAY_MS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_STREAM_IDLE_RETRIES, MAX_STREAM_IDLE_RETRIES, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES, DEFAULT_IMAGE_OFFLOAD_BYTE_QUANTUM, DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM, DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM, DEFAULT_FILE_EXPIRY_SECONDS, DEFAULT_FILE_REFRESH_MARGIN_SECONDS, DEFAULT_FILE_QUOTA_CLEANUP_BATCH, DEFAULT_FILES_API_TIMEOUT_MS } from './defaults.ts'
 import { DEFAULT_MAX_IMAGES_PER_REQUEST, DEFAULT_MAX_REQUEST_FILES_BYTES, DEFAULT_REQUEST_IMAGE_MAX_BYTES } from './request-pricing.ts'
 
 const MODEL_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModality[]
@@ -31,6 +31,8 @@ export interface Config {
   models: Volatile<DeepSeekCatalogModel[]>
   /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
   streamIdleTimeoutMs: Volatile<number>
+  /** Streams reopened after the provider stayed silent for `streamIdleTimeoutMs` before the attempt fails (default 1). */
+  streamIdleRetries: Volatile<number>
   /** Maximum accumulated file-referenced image bytes per chat request (default 128 MiB). */
   maxRequestFilesBytes: Volatile<number>
   /** Maximum accumulated base64 image payload after Files API fallback (default 20 MiB). */
@@ -103,6 +105,7 @@ export const deepSeekConfigFields = {
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW).volatile(),
   models: z.array(catalogModel).default(DEFAULT_MODELS).volatile(),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS).volatile(),
+  streamIdleRetries: z.number().step(1).min(0).max(MAX_STREAM_IDLE_RETRIES).default(DEFAULT_STREAM_IDLE_RETRIES).volatile(),
   maxRequestFilesBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_FILES_BYTES).volatile(),
   maxInlineRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES).volatile(),
   maxImagesPerRequest: z.number().step(1).min(1).default(DEFAULT_MAX_IMAGES_PER_REQUEST).volatile(),
@@ -257,6 +260,10 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
       `llm-deepseek: streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`,
     )
   }
+  const streamIdleRetries = config.streamIdleRetries ?? DEFAULT_STREAM_IDLE_RETRIES
+  if (!Number.isSafeInteger(streamIdleRetries) || streamIdleRetries < 0 || streamIdleRetries > MAX_STREAM_IDLE_RETRIES) {
+    throw new Error(`llm-deepseek: streamIdleRetries must be an integer from 0 through ${MAX_STREAM_IDLE_RETRIES}`)
+  }
   const maxRequestFilesBytes = config.maxRequestFilesBytes ?? DEFAULT_MAX_REQUEST_FILES_BYTES
   if (!Number.isSafeInteger(maxRequestFilesBytes) || maxRequestFilesBytes <= 0) {
     throw new Error('llm-deepseek: maxRequestFilesBytes must be a positive safe integer')
@@ -344,6 +351,7 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
     defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
     models: resolveModels(config.models),
     streamIdleTimeoutMs,
+    streamIdleRetries,
     maxRequestFilesBytes,
     maxInlineRequestImageBytes,
     maxImagesPerRequest,

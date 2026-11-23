@@ -8,6 +8,7 @@ import LlmRuntime, {
   HarnessError,
   isContextWindowExceededError,
   isQuotaExceededError,
+  isRateWindowQuotaError,
   LlmAdapter,
   LlmError,
   type ProviderRequestId,
@@ -143,6 +144,23 @@ describe('LlmRuntime', () => {
     ]) expect(isQuotaExceededError(detail)).toBe(true)
     expect(isQuotaExceededError('HTTP 429: rate limit reached')).toBe(false)
     expect(isQuotaExceededError('quota resets in one minute')).toBe(false)
+  })
+
+  it('treats a window-scoped quota 429 as retryable throttling, not a spent balance', () => {
+    const google = '429 [{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details.'
+      + ' Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_input_token_count,'
+      + ' limit: 2000000 \n* Generate content input tokens per minute limit exceeded on Tier 1. Please retry in 39.3s.",'
+      + '"status":"RESOURCE_EXHAUSTED"}]'
+    expect(isRateWindowQuotaError(google)).toBe(true)
+    expect(isRateWindowQuotaError('You exceeded your current quota: 60 requests per minute')).toBe(true)
+    expect(isRateWindowQuotaError('429 quota exceeded; retry in 12s')).toBe(true)
+    expect(isRateWindowQuotaError('quota exceeded: GenerateContentPaidTierInputTokensPerModelPerMinute')).toBe(true)
+    expect(isRateWindowQuotaError('quota exceeded {"retryDelay":"52s"}')).toBe(true)
+    // Terminal account exhaustion has no window and stays QUOTA.
+    expect(isRateWindowQuotaError('insufficient_quota')).toBe(false)
+    expect(isRateWindowQuotaError('You exceeded your current quota, please check your plan and billing details.')).toBe(false)
+    // Plain throttling wording is not a quota match at all.
+    expect(isRateWindowQuotaError('HTTP 429: rate limit reached')).toBe(false)
   })
 
   it('errorChain renders the full cause chain of a wrapped transport failure', () => {

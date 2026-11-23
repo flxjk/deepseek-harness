@@ -1686,6 +1686,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     const adapter = adapterOf({
       baseURL: 'https://example.invalid',
       streamIdleTimeoutMs: 100,
+      streamIdleRetries: 0,
     })
     try {
       const drain = (async () => {
@@ -1696,6 +1697,107 @@ describe('DeepSeekAdapter against a mock server', () => {
       await vi.advanceTimersByTimeAsync(100)
       await rejected
       expect(stopped).toBe(true)
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it('reopens a silent attempt that produced no chunk and finishes the turn', async () => {
+    vi.useFakeTimers()
+    const encoder = new TextEncoder()
+    let calls = 0
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+      calls += 1
+      const attempt = calls
+      const signal = init?.signal
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          if (attempt === 1) {
+            signal?.addEventListener('abort', () => { controller.error(signal.reason) }, { once: true })
+            return
+          }
+          controller.enqueue(encoder.encode(textEvents.map(event => `data: ${event}\n\n`).join('')))
+          controller.close()
+        },
+      })
+      return Promise.resolve(new Response(body, { status: 200 }))
+    })
+    const adapter = adapterOf({ baseURL: 'https://example.invalid', streamIdleTimeoutMs: 100, streamIdleRetries: 1 })
+    try {
+      const chunks: string[] = []
+      const drained = (async () => {
+        for await (const chunk of adapter.stream({ provider: 'deepseek-official', model: 'm', messages: [] })) {
+          chunks.push(chunk.type)
+        }
+      })()
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(100)
+      await vi.advanceTimersByTimeAsync(0)
+      await expect(drained).resolves.toBeUndefined()
+      expect(calls).toBe(2)
+      expect(chunks).toEqual(['block-start', 'text-delta', 'block-end', 'usage', 'finish'])
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it('fails with TIMEOUT once the reopen bound is spent', async () => {
+    vi.useFakeTimers()
+    let calls = 0
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+      calls += 1
+      const signal = init?.signal
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          signal?.addEventListener('abort', () => { controller.error(signal.reason) }, { once: true })
+        },
+      })
+      return Promise.resolve(new Response(body, { status: 200 }))
+    })
+    const adapter = adapterOf({ baseURL: 'https://example.invalid', streamIdleTimeoutMs: 100, streamIdleRetries: 1 })
+    try {
+      const drain = (async () => {
+        for await (const _chunk of adapter.stream({ provider: 'deepseek-official', model: 'm', messages: [] })) { /* drain */ }
+      })()
+      const rejected = expect(drain).rejects.toMatchObject({ code: 'TIMEOUT' })
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(100)
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(100)
+      await rejected
+      expect(calls).toBe(2)
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it('does not reopen an attempt that already produced chunks', async () => {
+    vi.useFakeTimers()
+    const encoder = new TextEncoder()
+    let calls = 0
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+      calls += 1
+      const signal = init?.signal
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(textEvents.slice(0, 2).map(event => `data: ${event}\n\n`).join('')))
+          signal?.addEventListener('abort', () => { controller.error(signal.reason) }, { once: true })
+        },
+      })
+      return Promise.resolve(new Response(body, { status: 200 }))
+    })
+    const adapter = adapterOf({ baseURL: 'https://example.invalid', streamIdleTimeoutMs: 100 })
+    try {
+      const stream = adapter.stream({ provider: 'deepseek-official', model: 'm', messages: [] })[Symbol.asyncIterator]()
+      try {
+        expect((await stream.next()).value).toMatchObject({ type: 'block-start' })
+        const rejected = expect(stream.next()).rejects.toMatchObject({ code: 'TIMEOUT' })
+        await vi.advanceTimersByTimeAsync(100)
+        await rejected
+        expect(calls).toBe(1)
+      } finally {
+        await stream.return?.()
+      }
     } finally {
       fetchSpy.mockRestore()
     }
@@ -2380,6 +2482,12 @@ describe('plugin registration and config', () => {
       .toThrow(/streamIdleTimeoutMs.*positive finite/)
     expect(() => resolveAdapterOptions({ streamIdleTimeoutMs: MAX_TIMER_DELAY_MS + 1 }))
       .toThrow(/streamIdleTimeoutMs.*no greater/)
+    expect(() => resolveAdapterOptions({ streamIdleRetries: -1 }))
+      .toThrow(/streamIdleRetries must be an integer/)
+    expect(() => resolveAdapterOptions({ streamIdleRetries: 1.5 }))
+      .toThrow(/streamIdleRetries must be an integer/)
+    expect(() => resolveAdapterOptions({ streamIdleRetries: 4 }))
+      .toThrow(/streamIdleRetries must be an integer/)
 
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)

@@ -146,6 +146,20 @@ export function isContextWindowExceededError(detail: string): boolean {
     || EXCEEDS_MODEL_CONTEXT.test(detail)
 }
 
+/** A quota limit scoped to a refilling window (per minute/day, RPM/TPM, "retry in Ns"). */
+const RATE_WINDOW_QUOTA = new RegExp(
+  String.raw`\b(?:per[\s_-]?(?:second|minute|hour|day)|(?:rpm|rpd|tpm|qps|rps)|rate[\s_-]?limits?`
+  + String.raw`|(?:requests?|tokens?)[\s_-]+per[\s_-]+(?:second|minute|hour|day)`
+  + String.raw`|retry[\s_-]+in[\s_-]+\d+(?:\.\d+)?[a-z]*)\b`,
+  'i',
+)
+
+/** CamelCase window suffixes in structured quota ids (e.g. `TokensPerModelPerMinute`). */
+const CAMEL_RATE_WINDOW = /[a-z]Per(?:Second|Minute|Hour|Day)\b/
+
+/** Google RPC `RetryInfo` delay embedded in JSON error bodies. */
+const RETRY_DELAY_FIELD = /"retryDelay"\s*:\s*"\d+(?:\.\d+)?(?:ms|s)"/
+
 /**
  * Recognize provider wording that identifies an exhausted account quota rather
  * than a transient request-rate limit.
@@ -158,6 +172,22 @@ export function isQuotaExceededError(detail: string): boolean {
     || /\bexceed(?:ed|s)?[\s_-]+(?:(?:your|the)[\s_-]+)?(?:current[\s_-]+)?quota\b/i.test(detail)
     || /\b(?:balance|credits?)[\s_-]+(?:exhausted|depleted)\b/i.test(detail)
     || /\bout[\s_-]+of[\s_-]+(?:credits?|budget)\b/i.test(detail)
+}
+
+/**
+ * Recognize quota wording that is scoped to a **refilling time window** rather
+ * than a spent account balance. Google AI Studio and compatible gateways answer
+ * an over-rate request with HTTP 429 `RESOURCE_EXHAUSTED` and the text
+ * `You exceeded your current quota` plus a per-minute metric name; that phrase
+ * alone is indistinguishable from terminal OpenAI billing exhaustion, so the
+ * window wording is what separates throttling from a spent balance. A 429 that
+ * names a window is transient and retryable, never a billing failure.
+ * @param detail - provider error code/type/message text joined into one string.
+ * @returns true only when quota wording is combined with a time-window scope.
+ */
+export function isRateWindowQuotaError(detail: string): boolean {
+  return isQuotaExceededError(detail)
+    && (RATE_WINDOW_QUOTA.test(detail) || CAMEL_RATE_WINDOW.test(detail) || RETRY_DELAY_FIELD.test(detail))
 }
 
 /**

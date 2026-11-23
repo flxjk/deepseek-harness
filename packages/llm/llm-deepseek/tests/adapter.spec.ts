@@ -277,7 +277,7 @@ describe('direct Messages HTTP', () => {
     })
     // Advance the idle clock after the response is readable, independently of connection setup time.
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const stream = adapter({ baseURL: http.url, streamIdleTimeoutMs: 30 }).stream(options())[Symbol.asyncIterator]()
+    const stream = adapter({ baseURL: http.url, streamIdleTimeoutMs: 30, streamIdleRetries: 0 }).stream(options())[Symbol.asyncIterator]()
     try {
       expect((await stream.next()).value).toMatchObject({ type: 'block-start' })
       const rejected = expect(stream.next()).rejects.toMatchObject({ code: 'TIMEOUT' })

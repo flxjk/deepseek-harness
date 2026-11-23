@@ -68,28 +68,39 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
   }
 
   private async * generate(options: GenerateOptions<string>, connection: C): AsyncGenerator<StreamChunk> {
-    const consumer = new AbortController()
-    const signal = options.signal === undefined ? consumer.signal : AbortSignal.any([consumer.signal, options.signal])
-    using watchdog = idleWatchdog(signal, connection.streamIdleTimeoutMs, 'MESSAGES_IDLE')
-    const iterator = this.request(options, connection, watchdog.signal, () => { watchdog.pulse() })
-    try {
-      while (true) {
-        const next = await watchdog.next(iterator)
-        if (next.done) return
-        yield next.value
+    // One connection per attempt. The first chunk decides whether a silent
+    // attempt produced anything a reopen would duplicate: before it arrives,
+    // the provider has emitted nothing and reopening cannot repeat content.
+    for (let attempt = 0; ; attempt += 1) {
+      const consumer = new AbortController()
+      const signal = options.signal === undefined ? consumer.signal : AbortSignal.any([consumer.signal, options.signal])
+      using watchdog = idleWatchdog(signal, connection.streamIdleTimeoutMs, 'MESSAGES_IDLE')
+      const iterator = this.request(options, connection, watchdog.signal, () => { watchdog.pulse() })
+      let produced = false
+      try {
+        while (true) {
+          const next = await watchdog.next(iterator)
+          if (next.done) return
+          produced = true
+          yield next.value
+        }
+      } catch (error) {
+        if (timeoutOf(watchdog.signal, 'MESSAGES_IDLE') !== undefined) {
+          if (!produced && !options.signal?.aborted
+            && attempt < connection.streamIdleRetries) continue
+          throw new LlmError('DeepSeek Messages stream idle timeout', 'TIMEOUT', { cause: error })
+        }
+        if (options.signal?.aborted) throw new LlmError('DeepSeek Messages request aborted', 'ABORTED', { cause: error })
+        if (error instanceof LlmError) throw error
+        throw new LlmError('DeepSeek Messages transport failed', 'TRANSPORT', { cause: error })
+      } finally {
+        consumer.abort()
+        // The abort above owns the socket teardown. A demand the deadline abandoned
+        // can stay pending forever, and this generator queues its own return behind
+        // that demand, so awaiting the drain would re-hang the settled outcome.
+        /* v8 ignore next -- the detached drain only rejects while unwinding an abandoned request. */
+        void iterator.return(undefined).catch(() => {})
       }
-    } catch (error) {
-      if (timeoutOf(watchdog.signal, 'MESSAGES_IDLE') !== undefined) throw new LlmError('DeepSeek Messages stream idle timeout', 'TIMEOUT', { cause: error })
-      if (options.signal?.aborted) throw new LlmError('DeepSeek Messages request aborted', 'ABORTED', { cause: error })
-      if (error instanceof LlmError) throw error
-      throw new LlmError('DeepSeek Messages transport failed', 'TRANSPORT', { cause: error })
-    } finally {
-      consumer.abort()
-      // The abort above owns the socket teardown. A demand the deadline abandoned
-      // can stay pending forever, and this generator queues its own return behind
-      // that demand, so awaiting the drain would re-hang the settled outcome.
-      /* v8 ignore next -- the detached drain only rejects while unwinding an abandoned request. */
-      void iterator.return(undefined).catch(() => {})
     }
   }
 

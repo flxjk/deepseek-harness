@@ -50,7 +50,7 @@ function start(
 
 async function harness(
   baseURL: string,
-  options: { streamIdleTimeoutMs?: number; initialDelayMs?: number } = {},
+  options: { streamIdleTimeoutMs?: number; streamIdleRetries?: number; initialDelayMs?: number } = {},
 ): Promise<Context> {
   vi.stubEnv('DEEPSEEK_API_KEY', 'mock-key')
   const ctx = new Context()
@@ -59,6 +59,9 @@ async function harness(
   await ctx.plugin(LlmDeepSeek, {
     baseURL,
     streamIdleTimeoutMs: options.streamIdleTimeoutMs ?? 1_000,
+    // These cases exercise the retry plugin's handling of a TIMEOUT failure, so
+    // the adapter must surface the first idle expiry instead of reopening.
+    streamIdleRetries: options.streamIdleRetries ?? 0,
     retryPolicy: {
       mode: 'normal',
       maxRetries: 2,

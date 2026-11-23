@@ -910,6 +910,41 @@ describe('mapStopReason / mapUsage', () => {
       stopReason: 'error',
       errorMessage: 'OpenAI API error (429): You exceeded your current quota, please check your plan and billing details.',
     }))).toMatchObject({ kind: 'error', failure: { code: 'QUOTA' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 [{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details.'
+        + ' Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_input_token_count,'
+        + ' limit: 2000000 \\n* Generate content input tokens per minute limit exceeded on Tier 1. Please retry in 39.3s",'
+        + '"status":"RESOURCE_EXHAUSTED","details":[{"retryDelay":"39s"}]}}]',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', providerRetryAfterMs: 39_300 } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 rate limit exceeded: try again in 1m 12.5s',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', providerRetryAfterMs: 72_500 } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 rate limit exceeded: retry after 250ms',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', providerRetryAfterMs: 250 } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 rate limit exceeded: retry in 400 milliseconds',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', providerRetryAfterMs: 400 } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 [{"error":{"message":"Quota exceeded","details":[{"retryDelay":"52s"}]}}]',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', providerRetryAfterMs: 52_000 } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 [{"error":{"message":"Quota exceeded","details":[{"retryDelay":"750ms"}]}}]',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT', providerRetryAfterMs: 750 } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 rate limit: retry in 0s',
+    }))).toEqual({ kind: 'error', failure: { message: '429 rate limit: retry in 0s', code: 'RATE_LIMIT' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: '429 rate limit: {"retryDelay":"9999999999s"}',
+    }))).toEqual({ kind: 'error', failure: { message: '429 rate limit: {"retryDelay":"9999999999s"}', code: 'RATE_LIMIT' } })
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'HTTP 500: backend down' })))
       .toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'provider timed out' })))

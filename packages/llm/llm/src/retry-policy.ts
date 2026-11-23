@@ -14,7 +14,7 @@ import type { BuiltinLlmFailureCode } from './error.ts'
 
 const DEFAULT_MAX_RETRIES = 5
 const DEFAULT_INITIAL_DELAY_MS = 500
-const DEFAULT_MAX_DELAY_MS = 10_000
+const DEFAULT_MAX_DELAY_MS = 65_000
 const DEFAULT_JITTER_RATIO = 0.1
 const DEFAULT_RETRYABLE_CODES: readonly BuiltinLlmFailureCode[] = Object.freeze([
   EMPTY_RESPONSE_CODE,
@@ -28,7 +28,7 @@ const DEFAULT_RETRYABLE_CODES: readonly BuiltinLlmFailureCode[] = Object.freeze(
 export interface BackoffConfig {
   /** Initial local exponential-backoff delay in milliseconds (default 500). */
   initialDelayMs?: number
-  /** Maximum locally scheduled or accepted provider delay in milliseconds (default 10000). */
+  /** Maximum locally scheduled or accepted provider delay in milliseconds (default 65000). */
   maxDelayMs?: number
   /** Symmetric random multiplier range around one (default 0.1). */
   jitterRatio?: number

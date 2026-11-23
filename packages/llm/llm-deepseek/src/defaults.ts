@@ -2,6 +2,15 @@
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
+/**
+ * Default number of times an attempt reopens after the provider went silent for
+ * {@link DEFAULT_STREAM_IDLE_TIMEOUT_MS}. A silent connection is usually dead
+ * rather than slow, and the first token has not arrived often enough to make a
+ * second attempt duplicate work.
+ */
+export const DEFAULT_STREAM_IDLE_RETRIES = 1
+/** Upper bound on reopen attempts per request; each one costs a further idle interval. */
+export const MAX_STREAM_IDLE_RETRIES = 3
 /** Default combined request/response context capacity. */
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000
 /** Default per-request output-token cap. */
