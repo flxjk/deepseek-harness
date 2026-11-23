@@ -33,7 +33,7 @@ import type { ResolvedRetryPolicy } from './retry-policy.ts'
 import type { ProviderRequestId } from './brand.ts'
 import { callConfigEquals } from './call-config.ts'
 import type { ConfigureCall, LlmCallConfig, LlmCallConfigAdapterDefaults } from './call-config.ts'
-import { HarnessError } from './error.ts'
+import { HarnessError, isQuotaExceededError } from './error.ts'
 import type { BuiltinLlmFailureCode } from './error.ts'
 import { normalizeLlmFailure } from './adapter-failure.ts'
 import {
@@ -92,6 +92,20 @@ export interface LlmErrorOptions extends ErrorOptions {
   offloadImages?: number
 }
 
+/** A quota limit scoped to a refilling window (per minute/day, RPM/TPM, "retry in Ns"). */
+const RATE_WINDOW_QUOTA = new RegExp(
+  String.raw`\b(?:per[\s_-]?(?:second|minute|hour|day)|(?:rpm|rpd|tpm|qps|rps)|rate[\s_-]?limits?`
+  + String.raw`|(?:requests?|tokens?)[\s_-]+per[\s_-]+(?:second|minute|hour|day)`
+  + String.raw`|retry[\s_-]+in[\s_-]+\d+(?:\.\d+)?[a-z]*)\b`,
+  'i',
+)
+
+/** CamelCase window suffixes in structured quota ids (e.g. `TokensPerModelPerMinute`). */
+const CAMEL_RATE_WINDOW = /[a-z]Per(?:Second|Minute|Hour|Day)\b/
+
+/** Google RPC `RetryInfo` delay embedded in JSON error bodies. */
+const RETRY_DELAY_FIELD = /"retryDelay"\s*:\s*"\d+(?:\.\d+)?(?:ms|s)"/
+
 /**
  * Typed error for LLM-related failures. Extends {@link HarnessError}, so the
  * `code` string (e.g. `AUTH`, `RATE_LIMIT`, `NO_ADAPTER`) is shared taxonomy.
@@ -102,6 +116,16 @@ export interface LlmErrorOptions extends ErrorOptions {
 export class LlmError extends HarnessError {
   /** Serializable facts retained beside this live Error. */
   readonly failure: LlmFailure
+
+  /**
+   * Classify quota failures tied to a refilling limit such as requests per minute.
+   * @param detail - provider error code, type, and message joined into one string.
+   * @returns whether the message describes a transient quota window.
+   */
+  static isRateWindowQuotaError(detail: string): boolean {
+    return isQuotaExceededError(detail)
+      && (RATE_WINDOW_QUOTA.test(detail) || CAMEL_RATE_WINDOW.test(detail) || RETRY_DELAY_FIELD.test(detail))
+  }
 
   /**
    * @param message - non-empty human-readable failure summary.
@@ -220,15 +244,15 @@ export abstract class LlmAdapter {
   }
 
   /**
-   * Resolve the image dimensions and byte target this adapter sends to the model.
+   * Resolve the maximum image dimensions and byte budgets this adapter uses for the model.
    * The default preserves normalized images; adapters that resize must override it.
    * @param _provider - registered provider route.
    * @param _model - exact model id.
    * @param image - normalized image whose request projection is being resolved.
-   * @returns the same target used by request serialization, before provider-internal processing.
+   * @returns the target used by request serialization; encoded images can be smaller to satisfy the hard byte limit.
    */
   imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef): ImageRequestTarget {
-    return { width: image.width, height: image.height, maxBytes: image.bytes }
+    return { width: image.width, height: image.height, maxImageBytes: image.bytes, imageTargetBytes: image.bytes }
   }
 
   /**
@@ -669,7 +693,7 @@ export class LlmRuntime extends TypertRemoteService {
    * @param provider - registered provider route.
    * @param model - exact model id.
    * @param image - normalized image reference.
-   * @returns dimensions and byte target used by the adapter's request serializer.
+   * @returns maximum dimensions and byte budgets used by the request serializer; readImageRequest returns the actual encoded dimensions.
    */
   imageRequestTarget(provider: string, model: string, image: ImageAttachmentRef): ImageRequestTarget {
     return this.registration(provider).adapter.imageRequestTarget(provider, model, image)

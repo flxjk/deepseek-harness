@@ -8,7 +8,6 @@ import LlmRuntime, {
   HarnessError,
   isContextWindowExceededError,
   isQuotaExceededError,
-  isRateWindowQuotaError,
   LlmAdapter,
   LlmError,
   type ProviderRequestId,
@@ -151,16 +150,16 @@ describe('LlmRuntime', () => {
       + ' Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_input_token_count,'
       + ' limit: 2000000 \n* Generate content input tokens per minute limit exceeded on Tier 1. Please retry in 39.3s.",'
       + '"status":"RESOURCE_EXHAUSTED"}]'
-    expect(isRateWindowQuotaError(google)).toBe(true)
-    expect(isRateWindowQuotaError('You exceeded your current quota: 60 requests per minute')).toBe(true)
-    expect(isRateWindowQuotaError('429 quota exceeded; retry in 12s')).toBe(true)
-    expect(isRateWindowQuotaError('quota exceeded: GenerateContentPaidTierInputTokensPerModelPerMinute')).toBe(true)
-    expect(isRateWindowQuotaError('quota exceeded {"retryDelay":"52s"}')).toBe(true)
+    expect(LlmError.isRateWindowQuotaError(google)).toBe(true)
+    expect(LlmError.isRateWindowQuotaError('You exceeded your current quota: 60 requests per minute')).toBe(true)
+    expect(LlmError.isRateWindowQuotaError('429 quota exceeded; retry in 12s')).toBe(true)
+    expect(LlmError.isRateWindowQuotaError('quota exceeded: GenerateContentPaidTierInputTokensPerModelPerMinute')).toBe(true)
+    expect(LlmError.isRateWindowQuotaError('quota exceeded {"retryDelay":"52s"}')).toBe(true)
     // Terminal account exhaustion has no window and stays QUOTA.
-    expect(isRateWindowQuotaError('insufficient_quota')).toBe(false)
-    expect(isRateWindowQuotaError('You exceeded your current quota, please check your plan and billing details.')).toBe(false)
+    expect(LlmError.isRateWindowQuotaError('insufficient_quota')).toBe(false)
+    expect(LlmError.isRateWindowQuotaError('You exceeded your current quota, please check your plan and billing details.')).toBe(false)
     // Plain throttling wording is not a quota match at all.
-    expect(isRateWindowQuotaError('HTTP 429: rate limit reached')).toBe(false)
+    expect(LlmError.isRateWindowQuotaError('HTTP 429: rate limit reached')).toBe(false)
   })
 
   it('errorChain renders the full cause chain of a wrapped transport failure', () => {
@@ -1735,12 +1734,16 @@ it('delegates image coordinate projections and preserves images for adapters wit
   try {
     const image = { attachmentId: brandString<AttachmentId>('sha256:' + 'a'.repeat(64)), mediaType: 'image/png' as const, bytes: 200, width: 640, height: 480 }
     ctx.llm.registerAdapter(['identity'], new ScriptedAdapter([]))
-    expect(ctx.llm.imageRequestTarget('identity', 'vision', image)).toEqual({ width: 640, height: 480, maxBytes: 200 })
+    expect(ctx.llm.imageRequestTarget('identity', 'vision', image)).toEqual({
+      width: 640, height: 480, maxImageBytes: 200, imageTargetBytes: 200,
+    })
     class ResizingAdapter extends ScriptedAdapter {
-      override imageRequestTarget() { return { width: 320, height: 240, maxBytes: 100 } }
+      override imageRequestTarget() { return { width: 320, height: 240, maxImageBytes: 100, imageTargetBytes: 100 } }
     }
     ctx.llm.registerAdapter(['resized'], new ResizingAdapter([]))
-    expect(ctx.llm.imageRequestTarget('resized', 'vision', image)).toEqual({ width: 320, height: 240, maxBytes: 100 })
+    expect(ctx.llm.imageRequestTarget('resized', 'vision', image)).toEqual({
+      width: 320, height: 240, maxImageBytes: 100, imageTargetBytes: 100,
+    })
     expect(() => ctx.llm.imageRequestTarget('absent', 'vision', image)).toThrow()
   } finally { await ctx.fiber.dispose() }
 })

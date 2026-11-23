@@ -3,26 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/session/README.md
 /:
-  en: 08b7e7cab39de6c6
-  zh: 8cbdf8b8d6445b70
+  en: a9dc7581b782e3ed
+  zh: 64f38befdba932f0
 /session-durable-session-data-plane:
   en: 16a515a77b72eab0
   zh: 005647121230f6ec
 /session-durable-session-data-plane/summary:
-  en: 2f898f8699ead598
-  zh: f63d9200cb8c60e5
+  en: 4fbf54ac2c4a9572
+  zh: 87cf197a36174202
 /session-durable-session-data-plane/table-of-contents:
   en: 1eb35b015a6c423f
   zh: a8a3dceee2c9e943
 /session-durable-session-data-plane/packages:
-  en: 908aff07d911f5f3
-  zh: c62df9eb9b7f8a49
+  en: 19cf3cc4611bcb29
+  zh: 2fa12a1b06a64000
 /session-durable-session-data-plane/packages/persistence:
   en: ee003a3214683fee
   zh: 5f78e3f98c208348
 /session-durable-session-data-plane/packages/projection:
   en: 60d032a14f9ac2cd
   zh: bff58d8ebd1f4cea
+/session-durable-session-data-plane/packages/messaging:
+  en: cb6b6823eb43833d
+  zh: b6924c81b8935009
 /session-durable-session-data-plane/packages/titles:
   en: c05868b0e1616349
   zh: b53c0ee6499a2096

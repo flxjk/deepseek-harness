@@ -43,7 +43,7 @@ describe('PR preview workflow', () => {
   })
 
   it('keeps the immutable complete artifact build and restore-only dependency cache', () => {
-    expect(workflow.env.PRIMARY_NODE_VERSION).toBe('24')
+    expect(workflow.env.PRIMARY_NODE_VERSION).toBe('^24.22.3')
     const commands = preview.steps.map(step => step.run)
     expect(commands).toContain('pnpm install --frozen-lockfile')
     expect(commands).toContain('pnpm run build')

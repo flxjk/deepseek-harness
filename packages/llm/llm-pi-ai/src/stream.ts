@@ -9,7 +9,7 @@
  */
 
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, isRateWindowQuotaError, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
+import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
 import type { BuiltinLlmFailureCode, FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
@@ -50,7 +50,7 @@ const LEADING_HTTP_STATUS = /^[45]\d\d\b/
 function classifyPiAiError(message: string): BuiltinLlmFailureCode {
   const statusSource = LEADING_HTTP_STATUS.exec(message)?.[0] ?? message
   if (/\b(?:401|403)\b/.test(statusSource)) return 'AUTH'
-  if (isRateWindowQuotaError(message)) return 'RATE_LIMIT'
+  if (LlmError.isRateWindowQuotaError(message)) return 'RATE_LIMIT'
   if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE
   if (/\b429\b/.test(statusSource) || /rate.?limit/i.test(message)) return 'RATE_LIMIT'
   // A rejected request body (gateway or provider size cap): resending the
@@ -80,27 +80,29 @@ function classifyPiAiError(message: string): BuiltinLlmFailureCode {
 // Prose retry delays (e.g. Google's "Please retry in 52.357890949s.") carry
 // sub-second precision, whereas Google RPC RetryInfo ("retryDelay":"52s")
 // truncates to whole seconds, so prose is checked first.
-const PROSE_RETRY_DELAY = /\b(?:retry|try\s+again)\s+(?:in|after)\s+(?:(\d+)\s*m\s*)?(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|sec(?:onds?)?)\b/i
+const PROSE_RETRY_DELAY = new RegExp(
+  String.raw`\b(?:retry|try\s+again)\s+(?:in|after)\s+(?:(\d+)\s*m\s*)?`
+  + String.raw`(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|sec(?:onds?)?)\b`,
+  'i',
+)
 const JSON_RETRY_DELAY = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)(ms|s)"/i
 
 function parseRetryAfterMs(message: string): number | undefined {
-  const prose = PROSE_RETRY_DELAY.exec(message)
-  if (prose !== null) {
-    const minutes = prose[1] === undefined ? 0 : Number(prose[1])
-    const value = Number(prose[2])
-    const unit = prose[3]!.toLowerCase()
+  const [, proseMinutes, proseValue, proseUnit] = PROSE_RETRY_DELAY.exec(message) ?? []
+  if (proseValue !== undefined && proseUnit !== undefined) {
+    const minutes = Number(proseMinutes ?? 0)
+    const value = Number(proseValue)
+    const unit = proseUnit.toLowerCase()
     const ms = unit.startsWith('ms') || unit.startsWith('millisecond')
       ? Math.ceil(minutes * 60_000 + value)
       : Math.ceil((minutes * 60 + value) * 1_000)
     return ms > 0 && ms <= MAX_TIMER_DELAY_MS ? ms : undefined
   }
-  const json = JSON_RETRY_DELAY.exec(message)
-  if (json !== null) {
-    const value = Number(json[1])
-    const ms = json[2]!.toLowerCase() === 'ms' ? Math.ceil(value) : Math.ceil(value * 1_000)
-    return ms > 0 && ms <= MAX_TIMER_DELAY_MS ? ms : undefined
-  }
-  return undefined
+  const [, jsonValue, jsonUnit] = JSON_RETRY_DELAY.exec(message) ?? []
+  if (jsonValue === undefined || jsonUnit === undefined) return undefined
+  const value = Number(jsonValue)
+  const ms = jsonUnit.toLowerCase() === 'ms' ? Math.ceil(value) : Math.ceil(value * 1_000)
+  return ms > 0 && ms <= MAX_TIMER_DELAY_MS ? ms : undefined
 }
 
 /**

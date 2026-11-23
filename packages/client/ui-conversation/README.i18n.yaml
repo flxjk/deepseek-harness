@@ -6,8 +6,8 @@
   en: 0ca51f37788dcbdb
   zh: 14d73c6bc8d4e17f
 /deepseek-ai-dsh-client-ui-conversation:
-  en: 77ecbd074ef3a3ce
-  zh: 2c0e2b720e3b201e
+  en: 71d52109076d859d
+  zh: 8e63171fbd9bde48
 /deepseek-ai-dsh-client-ui-conversation/summary:
   en: 8811c28013fdc6dc
   zh: 0a86edc422b38ba8
@@ -15,14 +15,14 @@
   en: eef4f18c3972ccc4
   zh: 6be65c6ac84ce497
 /deepseek-ai-dsh-client-ui-conversation/conversation-assembly:
-  en: 4dcb2d887e3df57f
-  zh: d4a6e5f4f9a4d67d
+  en: c486da761860c518
+  zh: 35b4d6934f17be90
 /deepseek-ai-dsh-client-ui-conversation/sent-user-text:
   en: 4a094cd97426ad18
   zh: 5faadddb7e2b0a43
 /deepseek-ai-dsh-client-ui-conversation/shell-and-standard-props:
-  en: 8ad7f24bef08474a
-  zh: 23accc0d5e837714
+  en: 0fcc54f3bd64844b
+  zh: 77e524fa170ca02b
 /deepseek-ai-dsh-client-ui-conversation/shell-and-standard-props/control-geometry:
   en: 876be274c65b56d9
   zh: c3adbf5a16e0e38e
@@ -45,8 +45,8 @@
   en: f8621bbc481c26ae
   zh: 5be844989dc80803
 /deepseek-ai-dsh-client-ui-conversation/known-limitations-and-deferred-work:
-  en: c65789c64093eb47
-  zh: b58cccbeea767849
+  en: 0db84c3de00194e4
+  zh: bf4c4115b90387fb
 /deepseek-ai-dsh-client-ui-conversation/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: e88aeb617ffb74ea

@@ -40,6 +40,7 @@ kind: "package-reference"
 进入创造模式会为接收该选择的空白 Session 选择 `cordis`，不改变新任务默认值或代码工作工具设置。尚未绑定工作区或空白 Session 时，选择等待绑定完成后应用。应用后，创造 Session 保留该预设；之后真正创建的新 Session 使用配置的默认值，例如标准模式。
 
 并列预设的说明从标题下方相同距离开始。较短说明将剩余空间留在下方，卡片页尾保持对齐，不将说明单独垂直居中。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

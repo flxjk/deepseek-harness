@@ -61,7 +61,7 @@ Edits write the complete server record from the last accepted settings snapshot,
 - [mcp-manager](../../mcp/mcp-manager/README.md) — Host settings, validation, server lifecycle, and Remote methods.
 - [mcp-client](../../mcp/mcp-client/README.md) — MCP transports and tool registration.
 - [ui-settings](../ui-settings/README.md) — the settings service and served-namespace lifetime.
-- [ui-settings-plugins](../ui-settings-plugins/README.md) — the Plugins page and its tab slot.
+- [ui-plugin-manager](../ui-plugin-manager/README.md) — the Plugins page and its tab slot.
 
 -----
 

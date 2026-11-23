@@ -134,6 +134,8 @@ export const EXISTING_PLUGIN_ENTRY_EXPORTS = {
     'deriveEventMessage', 'encodeSeqRanges', 'foldRequestHeader', 'foldSurface', 'headerEquals',
     'interruptedTurnClosers', 'isAppendSurfaceEvent', 'isReplacementSurfaceEvent', 'isSurfaceEligibleType',
     'isSurfaceEvent', 'pluginRecordOf', 'snapshotSessionEvent',
+    // SessionData v2 transition: temporary exemption until these values move to a subpath export.
+    'buildSessionHeader', 'needsInheritedSeedMarker', 'validateSessionLog',
   ],
   '@deepseek-ai/dsh-session-log-export': [
     'DEFAULT_SESSION_LOG_COMPRESSION_LEVEL', 'SESSION_LOG_EXPORT_PATH', 'SESSION_LOG_FILENAME', 'flushLiveSessionLog',

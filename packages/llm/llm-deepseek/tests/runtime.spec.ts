@@ -172,15 +172,15 @@ describe('request image target', () => {
   it.each([
     [
       { id: 'default' },
-      { width: 1302, height: 1302, maxBytes: 2 * 1024 * 1024 },
+      { width: 1302, height: 1302, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 },
     ],
     [
       { id: 'low', imagePixelBudget: 'low' as const },
-      { width: 512, height: 512, maxBytes: 2 * 1024 * 1024 },
+      { width: 512, height: 512, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 },
     ],
     [
-      { id: 'custom', imagePixelBudget: 320_000, imageMaxBytes: 512_000 },
-      { width: 565, height: 565, maxBytes: 512_000 },
+      { id: 'custom', imagePixelBudget: 320_000, imageTargetBytes: 512_000 },
+      { width: 565, height: 565, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 512_000 },
     ],
   ])('resolves route-owned defaults and overrides for %s on a 4096x4096 source', (model, expected) => {
     expect(resolveRequestImageTarget(model, { width: 4096, height: 4096 })).toEqual(expected)
@@ -188,9 +188,9 @@ describe('request image target', () => {
 
   it('caps every request image at the provider per-side limit', () => {
     expect(resolveRequestImageTarget({ id: 'default' }, { width: 8192, height: 78 }))
-      .toEqual({ width: 4096, height: 39, maxBytes: 2 * 1024 * 1024 })
+      .toEqual({ width: 4096, height: 39, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 })
     expect(resolveRequestImageTarget({ id: 'custom', imagePixelBudget: 640_000 }, { width: 10_000, height: 100 }))
-      .toEqual({ width: 4096, height: 41, maxBytes: 2 * 1024 * 1024 })
+      .toEqual({ width: 4096, height: 41, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 })
   })
 
   it('answers image request pricing from the current connection snapshot', () => {
@@ -439,7 +439,7 @@ describe('DeepSeekAdapter against a mock server', () => {
       bytes: 3,
     }])
     expect(signalSeen[0]).toBeInstanceOf(AbortSignal)
-    expect(policies).toEqual([{ width: 1, height: 1, maxBytes: 2 * 1024 * 1024 }])
+    expect(policies).toEqual([{ width: 1, height: 1, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 }])
   })
 
   it('rejects unknown plugin content without preparing nested images', async () => {
@@ -697,7 +697,7 @@ describe('DeepSeekAdapter against a mock server', () => {
 
     expect(attachmentMocks.readImageRequest).toHaveBeenCalledWith(
       recent,
-      { width: 1, height: 1, maxBytes: 2 * 1024 * 1024 },
+      { width: 1, height: 1, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 },
       expect.any(AbortSignal),
     )
     const body = server.requests[0] as { messages: unknown[] }
@@ -724,7 +724,7 @@ describe('DeepSeekAdapter against a mock server', () => {
           id: 'vision-low',
           inputModalities: ['text', 'image'],
           imagePixelBudget: 'low',
-          imageMaxBytes: 512_000,
+          imageTargetBytes: 512_000,
         },
         {
           id: 'vision-custom',
@@ -749,13 +749,13 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(attachmentMocks.readImageRequest).toHaveBeenNthCalledWith(
       1,
       imageRef,
-      { width: 1, height: 1, maxBytes: 512_000 },
+      { width: 1, height: 1, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 512_000 },
       expect.any(AbortSignal),
     )
     expect(attachmentMocks.readImageRequest).toHaveBeenNthCalledWith(
       2,
       imageRef,
-      { width: 1, height: 1, maxBytes: 2 * 1024 * 1024 },
+      { width: 1, height: 1, maxImageBytes: 32 * 1024 * 1024, imageTargetBytes: 2 * 1024 * 1024 },
       expect.any(AbortSignal),
     )
   })
@@ -1872,10 +1872,10 @@ describe('plugin registration and config', () => {
     const fiber = await ctx.plugin(LlmDeepSeek, {
       baseURL: server.url,
     })
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek API' }])
     expect(ctx.llm.listConfigurableProviders()).toEqual([{
       provider: 'deepseek-official',
-      displayName: 'DeepSeek',
+      displayName: 'DeepSeek API',
       settingsNs: 'llm-deepseek-api-key',
       settingsPath: [],
     }])
@@ -1910,7 +1910,7 @@ describe('plugin registration and config', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: 'http://127.0.0.1:1' })
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek API' }])
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
       { provider: 'deepseek-official', id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash', inputModalities: ['text', 'image'] },
       {
@@ -2207,8 +2207,9 @@ describe('plugin registration and config', () => {
     ['imagePixelBudget', 0, /imagePixelBudget must be "low" or a positive safe integer/],
     ['imagePixelBudget', Number.MAX_SAFE_INTEGER + 1, /imagePixelBudget must be "low" or a positive safe integer/],
     ['imagePixelBudget', 'auto', /imagePixelBudget must be "low" or a positive safe integer/],
-    ['imageMaxBytes', 0, /imageMaxBytes must be a positive safe integer/],
-    ['imageMaxBytes', 1.5, /imageMaxBytes must be a positive safe integer/],
+    ['imageTargetBytes', 0, /imageTargetBytes must be a positive safe integer/],
+    ['imageTargetBytes', 32 * 1024 * 1024 + 1, /imageTargetBytes must be a positive safe integer/],
+    ['imageTargetBytes', 1.5, /imageTargetBytes must be a positive safe integer/],
   ] as const)('rejects per-model %s=%s', (field, value, message) => {
     expect(() => resolveAdapterOptions({
       models: [{ id: 'vision', inputModalities: ['image'], [field]: value }],
@@ -2360,7 +2361,7 @@ describe('plugin registration and config', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {})
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek API' }])
   })
 
   it('loads keyless with an empty catalog and fails requests actionably', async () => {
@@ -2369,7 +2370,7 @@ describe('plugin registration and config', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, { baseURL: 'http://127.0.0.1:1' })
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek API' }])
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([])
     const first = await assemble(ctx, { model: 'deepseek-flash', messages: [] })
     expect(first.finish).toMatchObject({ kind: 'error', failure: { code: 'MISSING_CREDENTIAL' } })
@@ -2454,7 +2455,7 @@ describe('plugin registration and config', () => {
     // Registration succeeds; no call is made (would hit api.deepseek.com).
     await ctx.plugin(DeepSeekAuth)
     await ctx.plugin(LlmDeepSeek, {})
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek API' }])
   })
 
   it('adapter is constructible directly for embedding over the shared resolver', async () => {
@@ -2534,4 +2535,11 @@ describe('plugin registration and config', () => {
     })).rejects.toThrow(/retryPolicy/)
     expect(ctx.llm.listProviders()).toEqual([])
   })
+})
+
+
+it('rejects the retired imageMaxBytes model setting instead of ignoring its soft target', () => {
+  expect(() => resolveAdapterOptions({ models: [{
+    id: 'vision', inputModalities: ['text', 'image'], ...{ imageMaxBytes: 1024 },
+  }] })).toThrow(/replace model imageMaxBytes with imageTargetBytes/)
 })

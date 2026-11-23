@@ -40,6 +40,7 @@ Known shipped presets offer mode details and usage examples in a read-only dialo
 Entering Creator selects `cordis` for the receiving blank Session without changing the new-task default or Coding Tools setting. If no workspace or blank Session is bound yet, the choice waits for that binding. After the choice is applied, the Creator Session keeps its preset; a later newly created Session uses the configured default, such as Standard.
 
 Parallel preset descriptions start at the same distance below their headings. Shorter descriptions leave spare space below, keeping the card footers aligned without vertically centering the descriptions.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

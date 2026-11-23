@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PRIMARY_NODE_VERSION: '24'
+  PRIMARY_NODE_VERSION: '^24.22.3'
 
 jobs:
   dependencies:

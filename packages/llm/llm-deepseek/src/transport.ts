@@ -1,7 +1,7 @@
 /** Normalize HTTP and in-band Messages errors into provider-neutral failures. */
 
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { isContextWindowExceededError, isQuotaExceededError, isRateWindowQuotaError, LlmError, type ProviderRequestId } from '@deepseek-ai/dsh-llm'
+import { isContextWindowExceededError, isQuotaExceededError, LlmError, type ProviderRequestId } from '@deepseek-ai/dsh-llm'
 import type { BuiltinLlmFailureCode } from '@deepseek-ai/dsh-llm'
 
 /** Read only provider error fields used by bounded Files recovery.
@@ -39,7 +39,7 @@ export function providerError(raw: unknown, status: number | undefined, headers?
   const detail = `${type} ${typeof error.code === 'string' ? error.code : ''} ${message}`
   let code: BuiltinLlmFailureCode
   if (status === 401 || status === 403 || ['authentication_error', 'permission_error'].includes(type)) code = 'AUTH'
-  else if (isRateWindowQuotaError(detail)) code = 'RATE_LIMIT'
+  else if (LlmError.isRateWindowQuotaError(detail)) code = 'RATE_LIMIT'
   else if (isQuotaExceededError(detail) || status === 402) code = 'QUOTA'
   else if (status === 429 || type === 'rate_limit_error') code = 'RATE_LIMIT'
   else if (isContextWindowExceededError(detail)) code = 'CONTEXT_WINDOW_EXCEEDED'

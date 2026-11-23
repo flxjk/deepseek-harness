@@ -1,7 +1,7 @@
 /** Real profile, Remote, and page Loader: a browser plugin receives its Host face's volatile Config and follows live edits. */
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FiberState } from '@deepseek-ai/cordis'
 import { chromium } from 'playwright'
@@ -39,8 +39,9 @@ it('renders volatile Config without secrets or ordinary fields and updates it in
   const installed = await mkdtemp(join(tmpdir(), 'dsh-client-config-sync-'))
   onTestFinished(() => rm(installed, { recursive: true, force: true }))
   await cp(FIXTURE, installed, { recursive: true })
-  await mkdir(join(installed, 'node_modules', '@deepseek-ai'), { recursive: true })
-  await symlink(SCHEMASTERY, join(installed, 'node_modules', '@deepseek-ai', 'schemastery'), 'junction')
+  const schemaLink = join(installed, 'node_modules', '@deepseek-ai/schemastery')
+  await mkdir(dirname(schemaLink), { recursive: true })
+  await symlink(SCHEMASTERY, schemaLink, 'junction')
   const scaffold = await launchWebScaffold({ profile: { packages: [{ dir: installed, enabled: true }] } })
   onTestFinished(() => scaffold.close())
   const browser = await chromium.launch()

@@ -61,7 +61,7 @@ Host 服务 `mcp-manager` 时，浏览器插件会注册 `plugins.item` 页面�
 - [mcp-manager](../../mcp/mcp-manager/README.zh.md)——Host 设置、校验、服务器生命周期和 Remote 方法。
 - [mcp-client](../../mcp/mcp-client/README.zh.md)——MCP 传输方式与工具注册。
 - [ui-settings](../ui-settings/README.zh.md)——设置服务与命名空间的服务生命周期。
-- [ui-settings-plugins](../ui-settings-plugins/README.zh.md)——插件页及其标签 slot。
+- [ui-plugin-manager](../ui-plugin-manager/README.zh.md)——插件页及其标签 slot。
 
 -----
 
