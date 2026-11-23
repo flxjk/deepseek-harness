@@ -54,14 +54,16 @@ function readBridge(): readonly BridgeEntry[] {
   const rows: BridgeEntry[] = []
   for (const line of text.split(/\r?\n/)) {
     const match = line.match(/^ {6}([a-z0-9-]+): \{ (.*) \}$/)
-    if (match === null) continue
+    const name = match?.[1]
+    const body = match?.[2]
+    if (name === undefined || body === undefined) continue
     const fields = new Map<string, string>()
-    for (const part of splitTopLevel(match[2])) {
+    for (const part of splitTopLevel(body)) {
       const separator = part.indexOf(': ')
       if (separator < 0) throw new Error(`unparsable bridge field: ${part}`)
       fields.set(part.slice(0, separator).trim(), part.slice(separator + 2).trim())
     }
-    rows.push({ name: match[1], fields })
+    rows.push({ name, fields })
   }
   return rows
 }
@@ -89,7 +91,7 @@ function readWire(): readonly WireEntry[] {
 function listField(value: string | undefined): readonly string[] {
   if (value === undefined) return []
   const inner = value.trim().replace(/^\[/, '').replace(/\]$/, '').trim()
-  return inner.length === 0 ? [] : inner.split(',').map((item) => item.trim())
+  return inner.length === 0 ? [] : inner.split(',').map(item => item.trim())
 }
 
 describe('rhex MCP bridge', () => {
@@ -98,13 +100,13 @@ describe('rhex MCP bridge', () => {
 
   it('declares every server of the rhex wire, once', () => {
     expect(bridge.length).toBe(wire.length)
-    const names = bridge.map((row) => row.name)
+    const names = bridge.map(row => row.name)
     expect(new Set(names).size).toBe(names.length)
-    expect([...names].sort()).toEqual(wire.map((row) => row.name).sort())
+    expect([...names].sort()).toEqual(wire.map(row => row.name).sort())
   })
 
   it('keeps command, arguments and cwd identical to the wire for every server', () => {
-    const byName = new Map(bridge.map((row) => [row.name, row.fields]))
+    const byName = new Map(bridge.map(row => [row.name, row.fields]))
     const mismatched: string[] = []
     for (const entry of wire) {
       const fields = byName.get(entry.name)
@@ -164,6 +166,6 @@ describe('rhex MCP bridge', () => {
       if (!Number.isFinite(startup) || startup < 30_000) wrong.push(`${row.name}: startup budget ${startup}`)
     }
     expect(wrong).toEqual([])
-    expect(bridge.filter((row) => row.fields.get('toolLoading') === 'eager').map((row) => row.name).sort()).toEqual([...EAGER_FLOOR].sort())
+    expect(bridge.filter(row => row.fields.get('toolLoading') === 'eager').map(row => row.name).sort()).toEqual([...EAGER_FLOOR].sort())
   })
 })
